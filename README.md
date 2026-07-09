@@ -1,5 +1,7 @@
 # FaceAce
 
+[中文版](README_CN.md)
+
 A local web-based interview preparation assistant that transforms messy interview question documents into a structured question bank, supporting both flashcard-style practice with AI grading and full simulation interviews with SSE streaming and TTS.
 
 ## Features
