@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Backend runtime data
+backend/data/faceace.db
+backend/data/faceace.db-journal
+backend/data/faceace.db-wal
+backend/data/faceace.db-shm
+backend/data/ingest/
+
+# Env
+.env
+.env.local
+backend/.env
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# WorkBuddy
+.workbuddy/
+
+# Conda-specific scripts (local only)
+*-conda.bat
