@@ -1,163 +1,333 @@
 # FaceAce
 
-[中文版](README_CN.md)
+<div align="center">
 
-A local web-based interview preparation assistant that transforms messy interview question documents into a structured question bank, supporting both flashcard-style practice with AI grading and full simulation interviews with SSE streaming and TTS.
+**Local AI-Powered Interview Preparation Assistant**
 
-## Features
+[![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-blue?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-**Document Processing**
-- Supports `.md`, `.txt`, `.docx`, `.pdf` (text-based, no OCR for scanned images)
-- Text extraction, heuristic question splitting, LLM normalization into structured format (`question + answer + explanation + grading points`)
-- CLI and web upload interfaces
+[English](README.md) | [中文](README_CN.md)
 
-**Practice Mode**
-- Flashcard-style: hide answer first, think, then reveal
-- Submit your answer for AI grading (score, strengths, weaknesses, improved answer)
-- Question drawing strategies: random, by tag, by difficulty, wrong question review
+</div>
 
-**Simulation Mode**
-- Multi-turn streaming conversation with LLM interviewer
+---
+
+## What is FaceAce?
+
+FaceAce is a **local web application** that transforms messy interview question documents into a **structured question bank**, then helps you prepare through two powerful modes:
+
+```
++------------------+     +------------------+     +------------------+
+|   Your Documents | --> |   AI Processing  | --> |  Question Bank   |
+|  (.md/.txt/.pdf) |     |  (Extract + LLM) |     | (Structured Q&A) |
++------------------+     +------------------+     +------------------+
+                                                            |
+                              +-----------------------------+
+                              |
+                  +-----------+-----------+
+                  |                       |
+          +-------v-------+      +-------v-------+
+          | Practice Mode |      | Simulation    |
+          | (Flashcards + |      | Mode          |
+          |  AI Grading)  |      | (Live Chat +  |
+          |               |      |  TTS + Report)|
+          +---------------+      +---------------+
+```
+
+---
+
+## Key Features
+
+### Document Intelligence
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-format Support** | Import `.md`, `.txt`, `.docx`, `.pdf` files |
+| **Smart Extraction** | Automatic question detection and splitting |
+| **AI Normalization** | LLM converts raw text to structured Q&A format |
+| **Human Review** | Edit and approve before adding to bank |
+
+### Practice Mode
+
+```
++--------------------------------------------------+
+|  Question: What is a closure in JavaScript?       |
++--------------------------------------------------+
+|                                                  |
+|  [Your thinking area...]                         |
+|                                                  |
++--------------------------------------------------+
+|  [Reveal Answer]  [Submit for AI Grading]        |
++--------------------------------------------------+
+         |
+         v
++--------------------------------------------------+
+|  AI Grading Result                               |
+|  Score: 85/100                                   |
+|  Strengths: Good understanding of scope chain    |
+|  Weaknesses: Missing practical examples          |
+|  Improved Answer: [Detailed explanation...]      |
++--------------------------------------------------+
+```
+
+**Drawing Strategies:**
+- Random selection
+- By tags / difficulty
+- Wrong questions review
+- Custom deck filtering
+
+### Simulation Mode
+
+```
++--------------------------------------------------+
+|  Interview Session: Frontend Developer            |
++--------------------------------------------------+
+|                                                  |
+|  Interviewer: Tell me about yourself and your    |
+|               experience with React.             |
+|                                                  |
+|  Candidate: I have 3 years of experience...      |
+|                                                  |
+|  Interviewer: That's interesting. Can you        |
+|               explain how React's virtual DOM    |
+|               works and why it's beneficial?     |
+|                                                  |
+|  [Type your answer...]                           |
++--------------------------------------------------+
+|  [Send]  [TTS]  [End Interview]                  |
++--------------------------------------------------+
+         |
+         v
++--------------------------------------------------+
+|  Interview Report                                |
+|  Overall Score: 78/100                           |
+|  Strengths: Clear communication, good basics     |
+|  Weaknesses: Need deeper system design knowledge |
+|  Suggestions: Study distributed systems...       |
++--------------------------------------------------+
+```
+
+**Features:**
+- Multi-turn streaming conversation (SSE)
 - Follow-up questions based on your answers
 - TTS playback of interviewer messages
-- Structured report generation after interview (overall score, per-question feedback, improvement suggestions)
+- Structured report with per-question feedback
 
-**Configuration System**
-- Multiple LLM profiles (OpenAI-compatible: DeepSeek, SiliconFlow, OpenAI, Tongyi, local Ollama, etc.)
-- Editable prompt templates from frontend Settings page
-- TTS preferences (browser Web Speech API)
+---
 
 ## Tech Stack
 
-- **Backend**: Python 3.13 + FastAPI + SQLAlchemy 2.0 + SQLite + httpx + python-docx + pdfplumber
-- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + zustand + TanStack Query + react-markdown
-- **LLM**: Self-contained OpenAI-compatible adapter (httpx direct, no vendor SDK coupling), supports chat / streaming / structured output (three-tier fallback: `json_schema` -> `json_object` -> text extraction)
-- **TTS**: Browser Web Speech API (free, cloud TTS interface reserved)
+<div align="center">
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Backend** | Python 3.13 + FastAPI | High-performance async API |
+| **Database** | SQLAlchemy 2.0 + SQLite | Zero-config local storage |
+| **LLM** | httpx + OpenAI-compatible API | Vendor-agnostic AI integration |
+| **Frontend** | React 18 + TypeScript + Vite | Modern SPA with HMR |
+| **Styling** | Tailwind CSS | Utility-first CSS framework |
+| **State** | Zustand + TanStack Query | Lightweight state + data fetching |
+| **TTS** | Web Speech API | Free browser-based text-to-speech |
+
+</div>
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.13+
-- Node.js 18+
-- An OpenAI-compatible LLM API key (DeepSeek, OpenAI, etc.)
+- Python 3.13+ (with pip)
+- Node.js 18+ (with npm)
+- An OpenAI-compatible API key (DeepSeek, OpenAI, SiliconFlow, etc.)
 
-### 1. Backend
+### Installation
 
+```bash
+# Clone the repository
+git clone https://github.com/ygttygtt/FaceAce.git
+cd FaceAce
+
+# One-click start (Windows)
+dev.bat        # Development mode (hot reload)
+start.bat      # Production mode (single process)
+```
+
+### Manual Setup
+
+**Backend:**
 ```bash
 cd backend
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
-# Configure default LLM (optional, can also configure in Settings page after startup)
-cp .env.example .env   # Fill in LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
-.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+cp .env.example .env   # Edit with your LLM_API_KEY
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Frontend
-
+**Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev    # Open http://localhost:5173
 ```
 
-### 3. First Use
+### First Use
 
-1. Open `http://localhost:5173` -> Settings -> LLM Configuration: Add a profile (fill in base_url / api_key / model, e.g., DeepSeek `https://api.deepseek.com/v1` + `deepseek-chat`), set as default, click "Test Connection". If unsure about json_schema support, keep it disabled (auto-fallback will handle it).
-2. (Optional) TTS & Preferences: Enable TTS and select Chinese voice.
-3. Import Documents: Upload interview question document -> Wait for AI normalization (status changes to "Pending Review") -> Review questions -> Add to bank.
-4. Practice: Select drawing mode to start; Simulation: Create new session for multi-turn conversation.
+1. **Configure LLM**: Settings -> LLM Configuration -> Add profile
+2. **Import Documents**: Upload your interview questions file
+3. **Review & Approve**: Check normalized questions, edit if needed
+4. **Start Practicing**: Choose Practice or Simulation mode
 
-### CLI Import (Optional)
+---
 
-```bash
-cd backend
-.venv/Scripts/python.exe -m app.ingest path/to/file.docx                 # Import then review in Web
-.venv/Scripts/python.exe -m app.ingest path/to/file.docx --auto-approve  # Skip review, add directly
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Frontend (React)                       │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │ Practice │  │Simulation│  │  Bank   │  │ Settings│       │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │
+│       │            │            │            │             │
+│       └────────────┼────────────┼────────────┘             │
+│                    │            │                           │
+│              ┌─────v────────────v─────┐                    │
+│              │     API Client         │                    │
+│              │  (REST + SSE + TTS)    │                    │
+│              └───────────┬────────────┘                    │
+└──────────────────────────┼──────────────────────────────────┘
+                           │
+                           │ HTTP
+                           │
+┌──────────────────────────┼──────────────────────────────────┐
+│                    Backend (FastAPI)                         │
+│              ┌───────────v────────────┐                    │
+│              │      API Routes        │                    │
+│              │  /questions /practice   │                    │
+│              │  /simulation /ingest    │                    │
+│              └───────────┬────────────┘                    │
+│                          │                                 │
+│       ┌──────────────────┼──────────────────┐              │
+│       │                  │                  │              │
+│  ┌────v────┐      ┌─────v─────┐      ┌─────v─────┐        │
+│  │ LLM     │      │ Ingest    │      │ Services  │        │
+│  │ Adapter │      │ Pipeline  │      │ (Business)│        │
+│  └────┬────┘      └─────┬─────┘      └─────┬─────┘        │
+│       │                 │                  │              │
+│       │           ┌─────v─────┐            │              │
+│       │           │ Extractor │            │              │
+│       │           │ Chunker   │            │              │
+│       │           │ Normalizer│            │              │
+│       │           └───────────┘            │              │
+│       │                                    │              │
+│  ┌────v────────────────────────────────────v────┐         │
+│  │              SQLAlchemy ORM                  │         │
+│  │  Questions | Practice | Simulation | Config  │         │
+│  └──────────────────┬──────────────────────────┘         │
+│                     │                                    │
+│  ┌──────────────────v──────────────────────────┐         │
+│  │              SQLite Database                 │         │
+│  │           (backend/data/faceace.db)          │         │
+│  └─────────────────────────────────────────────┘         │
+└────────────────────────────────────────────────────────────┘
+                           │
+                           │ OpenAI-compatible API
+                           │
+┌──────────────────────────┼──────────────────────────────────┐
+│                    External LLM Services                    │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐      │
+│  │ DeepSeek│  │ OpenAI  │  │ Silicon │  │  Ollama │      │
+│  │         │  │         │  │  Flow   │  │ (local) │      │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘      │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### One-Click Scripts
-
-- **Development mode** (dual-process with hot reload): Double-click `dev.bat`
-- **Production mode** (single-process, backend serves frontend): Double-click `start.bat`
-
-## Question Bank Standard Format
-
-```jsonc
-{
-  "question_text": "What is a closure?",
-  "question_type": "short_answer",      // single_choice|multiple_choice|short_answer|essay|coding|behavioral|case|concept
-  "difficulty": "medium",               // easy|medium|hard
-  "tags": ["JavaScript", "Closure"],
-  "options": null,                      // For choice questions: string[]
-  "standard_answer": "...",
-  "answer_points": ["Point 1", "Point 2"],   // For AI grading
-  "explanation": "...",
-  "source": { "file": "x.docx", "page": 12, "raw_index": 3 }
-}
-```
-
-The Question Bank page supports one-click JSON export of all questions.
+---
 
 ## Project Structure
 
 ```
 FaceAce/
-├── backend/                 FastAPI backend
+├── backend/                      FastAPI backend
 │   ├── app/
-│   │   ├── main.py          Application entry point
-│   │   ├── core/            Config, logging, ID generation
-│   │   ├── db/              Database session, base, migrations
-│   │   ├── models/          SQLAlchemy ORM models
-│   │   ├── schemas/         Pydantic schemas (request/response + LLM structured output)
-│   │   ├── api/routes/      REST API endpoints
-│   │   ├── llm/             LLM adapter (sole external interface), service, prompts
-│   │   ├── ingest/          Document processing pipeline (extract -> chunk -> normalize -> store)
-│   │   └── services/        Business logic orchestration
+│   │   ├── main.py               Application entry point
+│   │   ├── core/                 Config, logging, ID generation
+│   │   ├── db/                   Database session, migrations
+│   │   ├── models/               SQLAlchemy ORM models
+│   │   ├── schemas/              Pydantic schemas
+│   │   ├── api/routes/           REST API endpoints
+│   │   ├── llm/                  LLM adapter (sole external interface)
+│   │   ├── ingest/               Document processing pipeline
+│   │   └── services/             Business logic
 │   └── requirements.txt
-├── frontend/                React frontend
+├── frontend/                     React frontend
 │   └── src/
-│       ├── lib/             API client, SSE handler, TTS wrapper
-│       ├── components/      Reusable UI components
-│       ├── pages/           Page components
-│       ├── store/           Zustand state management
-│       └── types/           TypeScript type definitions
-├── docs/                    Documentation
-└── dev.bat / start.bat      One-click startup scripts
+│       ├── lib/                  API client, SSE, TTS
+│       ├── components/           Reusable UI components
+│       ├── pages/                Page components
+│       ├── store/                State management
+│       └── types/                TypeScript definitions
+├── docs/                         Documentation
+├── dev.bat                       Development startup
+└── start.bat                     Production startup
 ```
 
-## Architecture Notes
+---
 
-- **LLM Decoupling**: `app/llm/adapter.py` is the only place that communicates with external LLM services. All providers (DeepSeek, OpenAI, Tongyi, Ollama, etc.) that speak the OpenAI `/chat/completions` protocol are handled identically.
-- **Structured Output Fallback**: `LLMService.structured()` attempts `json_schema` -> `json_object` -> plain text with regex extraction, validated by Pydantic at each tier.
-- **Prompt Template System**: `default_prompts.py` defines built-in templates; DB `prompt_templates` table stores user-edited versions; frontend Settings page allows editing. Templates use `{{var}}` placeholders.
-- **Single-Process Deployment**: When `frontend/dist` exists, FastAPI serves the built SPA directly (SPA fallback in `main.py`).
-- **ID Generation**: All entity IDs use `uuid.uuid4().hex` (32-char hex string), see `app/core/ids.py`.
-- **Database Migrations**: `db/migrate.py` patches missing columns via `run_migrations(engine)` during `init_db()`, no Alembic required.
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **LLM Adapter Pattern** | Single point of contact with external LLMs. All providers (DeepSeek, OpenAI, Tongyi, Ollama) that speak OpenAI protocol are handled identically. |
+| **Three-tier Structured Output** | `json_schema` -> `json_object` -> regex extraction. Each tier validated with Pydantic. Graceful degradation across providers. |
+| **Prompt Template System** | Built-in templates in `default_prompts.py`, user-editable in DB, frontend Settings page for modification. Uses `{{var}}` placeholders. |
+| **Single-Process Deployment** | When `frontend/dist` exists, FastAPI serves the built SPA directly. No separate web server needed. |
+| **UUID4 Hex IDs** | All entity IDs use `uuid.uuid4().hex` (32-char hex). No auto-increment, no collisions. |
+| **Auto Migrations** | `db/migrate.py` patches missing columns on startup. No Alembic required for simple schema changes. |
+
+---
 
 ## Environment Variables
 
 ```bash
-# backend/.env (copy from .env.example)
+# backend/.env
 DATABASE_URL=sqlite:///./data/faceace.db
 LLM_BASE_URL=https://api.deepseek.com/v1
-LLM_API_KEY=your_key_here
+LLM_API_KEY=your_api_key_here
 LLM_MODEL=deepseek-chat
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 # frontend/.env (optional)
-VITE_API_BASE=           # Leave empty for same-origin; Vite proxy handles dev
+VITE_API_BASE=           # Leave empty for same-origin
 ```
+
+---
 
 ## Important Notes
 
-- All LLM API keys are stored server-side only, masked in API responses (`mask_key()`).
-- TTS depends on system Chinese speech engine (Windows ships with Huihui/Yaoyao; install via System Settings > Speech if missing).
-- Scanned PDFs and image-based questions are not supported (lightweight approach, no OCR/VLM).
-- SQLite database is stored at `backend/data/faceace.db`, import staging at `backend/data/ingest/`.
+- **Security**: All LLM API keys stored server-side only, masked in API responses
+- **TTS**: Requires system Chinese speech engine (Windows: Huihui/Yaoyao via Settings > Speech)
+- **PDF Support**: Text-based PDFs only (no OCR for scanned images)
+- **Data Storage**: SQLite at `backend/data/faceace.db`, imports at `backend/data/ingest/`
+
+---
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details
+
+---
+
+<div align="center">
+
+**Built with FastAPI + React + LLM**
+
+[Report Bug](https://github.com/ygttygtt/FaceAce/issues) · [Request Feature](https://github.com/ygttygtt/FaceAce/issues)
+
+</div>
