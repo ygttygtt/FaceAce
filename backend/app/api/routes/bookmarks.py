@@ -17,10 +17,12 @@ def toggle_bookmark(data: BookmarkCreate, db: Session = Depends(get_db)):
 @router.get("/bookmarks")
 def list_bookmarks(db: Session = Depends(get_db)):
     items = bookmark_service.list_bookmarks(db)
+    qids = [b.question_id for b in items]
+    questions = {q.id: q for q in db.query(Question).filter(Question.id.in_(qids)).all()} if qids else {}
     result = []
     for b in items:
         bm = BookmarkOut.model_validate(b).model_dump()
-        q = db.get(Question, b.question_id)
+        q = questions.get(b.question_id)
         bm["question"] = QuestionOut.model_validate(q).model_dump() if q else None
         result.append(bm)
     return {"items": result}

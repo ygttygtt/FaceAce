@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
 interface Props {
@@ -10,6 +10,12 @@ interface Props {
 export default function BookmarkButton({ questionId, initialBookmarked = false, onToggle }: Props) {
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!initialBookmarked) {
+      api.checkBookmark(questionId).then((r) => setBookmarked(r.bookmarked));
+    }
+  }, [questionId]);
 
   const toggle = async () => {
     setLoading(true);

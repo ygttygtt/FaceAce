@@ -56,19 +56,22 @@ def list_records(
     limit: int = 50,
 ):
     items = practice_service.list_records(db, question_id, limit)
+    # Batch load related objects to avoid N+1
+    grading_ids = [r.grading_id for r in items if r.grading_id]
+    question_ids = [r.question_id for r in items if r.question_id]
+    gradings = {g.id: g for g in db.query(GradingResult).filter(GradingResult.id.in_(grading_ids)).all()} if grading_ids else {}
+    questions = {q.id: q for q in db.query(Question).filter(Question.id.in_(question_ids)).all()} if question_ids else {}
+
     enriched = []
     for r in items:
         item = PracticeRecordOut.model_validate(r).model_dump()
-        if r.grading_id:
-            grading = db.get(GradingResult, r.grading_id)
-            if grading:
-                item["grading"] = GradingResultOut.model_validate(grading).model_dump()
+        if r.grading_id and r.grading_id in gradings:
+            item["grading"] = GradingResultOut.model_validate(gradings[r.grading_id]).model_dump()
         if r.question_id:
-            question = db.get(Question, r.question_id)
-            if question:
-                item["question"] = QuestionOut.model_validate(question).model_dump()
+            q = questions.get(r.question_id)
+            if q:
+                item["question"] = QuestionOut.model_validate(q).model_dump()
             elif r.question_text:
-                # Question deleted but snapshot exists
                 item["question"] = {"question_text": r.question_text, "question_type": "", "difficulty": "", "deleted": True}
         enriched.append(item)
     return {"items": enriched}

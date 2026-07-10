@@ -167,6 +167,7 @@ export interface Note {
 export interface PracticeRecordDetail {
   id: string;
   question_id: string;
+  question_text?: string | null;
   user_answer: string | null;
   revealed: boolean;
   duration_sec: number;

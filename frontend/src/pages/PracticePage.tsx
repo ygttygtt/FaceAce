@@ -101,6 +101,7 @@ export default function PracticePage() {
         practice_record_id: rec.id,
       }, {
         onDelta: (d) => setStreamText((t) => t + d),
+        onResult: (r) => setGrading(r),
         onDone: () => setStreamDone(true),
         onError: (m) => setStreamError(m),
       });

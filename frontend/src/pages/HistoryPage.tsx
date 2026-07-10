@@ -194,7 +194,11 @@ export default function HistoryPage() {
                 className="block bg-white border rounded-lg p-3 text-sm hover:border-red-300 transition-colors"
               >
                 <div className="text-gray-900 truncate">{q.question_text}</div>
-                <div className="text-xs text-gray-400 mt-1">{q.question_type} · {q.difficulty}</div>
+                <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                  <span>{q.question_type}</span>
+                  <span>{q.difficulty}</span>
+                  {q.tags?.slice(0, 3).map((t) => <span key={t} className="text-blue-600">#{t}</span>)}
+                </div>
               </Link>
             ))
           )}
@@ -228,10 +232,6 @@ export default function HistoryPage() {
                       <div className="flex items-center gap-2 ml-3 shrink-0">
                         <Link
                           to="/bank"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            window.location.href = `/bank`;
-                          }}
                           className="px-2 py-1 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50"
                         >
                           题库查看

@@ -37,7 +37,7 @@ export default function PracticeDetailPage() {
           {new Date(detail.created_at).toLocaleString()} · 用时 {detail.duration_sec}s
         </div>
         <div className="text-base text-gray-900 whitespace-pre-wrap leading-relaxed mb-4">
-          {detail.question?.question_text || "题目已删除"}
+          {detail.question?.question_text || (detail as any).question_text || "（题目已删除）"}
         </div>
         {detail.question?.standard_answer && (
           <div>
