@@ -8,6 +8,7 @@ import NewSimulationPage from "./pages/NewSimulationPage";
 import SimulationPage from "./pages/SimulationPage";
 import ReportPage from "./pages/ReportPage";
 import HistoryPage from "./pages/HistoryPage";
+import PracticeDetailPage from "./pages/PracticeDetailPage";
 import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/simulation/:id" element={<SimulationPage />} />
         <Route path="/simulation/:id/report" element={<ReportPage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/practice/record/:recordId" element={<PracticeDetailPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>
