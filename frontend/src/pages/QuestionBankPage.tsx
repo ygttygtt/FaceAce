@@ -65,6 +65,14 @@ export default function QuestionBankPage() {
       setNewDeckName("");
     },
   });
+  const deleteDeck = useMutation({
+    mutationFn: (id: string) => api.deleteDeck(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["decks"] });
+      qc.invalidateQueries({ queryKey: ["questions"] });
+      setDeckId(null);
+    },
+  });
 
   const toggle = (id: string) => {
     const s = new Set(selected);
@@ -137,7 +145,7 @@ export default function QuestionBankPage() {
         {decks.map((d) => (
           <div
             key={d.id}
-            className={`px-2 py-1.5 rounded cursor-pointer text-sm flex justify-between ${
+            className={`px-2 py-1.5 rounded cursor-pointer text-sm flex justify-between items-center group ${
               deckId === d.id ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"
             }`}
             onClick={() => {
@@ -146,7 +154,21 @@ export default function QuestionBankPage() {
             }}
           >
             <span className="truncate">{d.name}</span>
-            <span className="text-xs text-gray-400">{d.question_count}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">{d.question_count}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`删除题库「${d.name}」？题目不会删除，只是取消分组。`)) {
+                    deleteDeck.mutate(d.id);
+                  }
+                }}
+                className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                title="删除题库"
+              >
+                ×
+              </button>
+            </div>
           </div>
         ))}
         {decks.length === 0 && (
