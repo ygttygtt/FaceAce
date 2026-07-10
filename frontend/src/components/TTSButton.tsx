@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { ttsSpeak, ttsStop, ttsAvailable } from "../lib/tts";
+import { playCloudTts, stopCloudTts } from "../lib/ttsCloud";
 
 export default function TTSButton({ text }: { text: string }) {
   const { data: userConfig } = useQuery({
@@ -10,11 +11,35 @@ export default function TTSButton({ text }: { text: string }) {
   });
   const [speaking, setSpeaking] = useState(false);
 
-  if (!userConfig?.tts_enabled || !ttsAvailable()) return null;
+  if (!userConfig?.tts_enabled) return null;
 
-  const toggle = () => {
-    if (speaking) {
+  const isCloud = userConfig.tts_cloud_provider === "mimo";
+
+  // Hide button if local TTS not available and not using cloud
+  if (!isCloud && !ttsAvailable()) return null;
+
+  const stop = () => {
+    if (isCloud) {
+      stopCloudTts();
+    } else {
       ttsStop();
+    }
+    setSpeaking(false);
+  };
+
+  const toggle = async () => {
+    if (speaking) {
+      stop();
+      return;
+    }
+
+    if (isCloud) {
+      setSpeaking(true);
+      try {
+        await playCloudTts(text, userConfig.tts_voice || "Chloe");
+      } catch {
+        // silently fail
+      }
       setSpeaking(false);
     } else {
       ttsSpeak(text, {
@@ -23,7 +48,6 @@ export default function TTSButton({ text }: { text: string }) {
         enabled: true,
       });
       setSpeaking(true);
-      // best-effort: reset flag after a delay
       setTimeout(() => setSpeaking(false), Math.max(2000, text.length * 120));
     }
   };

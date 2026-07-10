@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { streamSSE } from "../lib/sse";
 import { ttsSpeak } from "../lib/tts";
+import { playCloudTts, stopCloudTts } from "../lib/ttsCloud";
 import ChatBubble from "../components/ChatBubble";
 import TTSButton from "../components/TTSButton";
 import { useUIStore } from "../store/useConfigStore";
@@ -52,11 +53,15 @@ export default function SimulationPage() {
     if (!ttsAutoPlay || msgs.length === 0) return;
     const last = msgs[msgs.length - 1];
     if (last.role === "interviewer") {
-      ttsSpeak(last.content, {
-        voice: userConfig?.tts_voice || "",
-        rate: userConfig?.tts_rate || 1,
-        enabled: true,
-      });
+      if (userConfig?.tts_cloud_provider === "mimo") {
+        playCloudTts(last.content, userConfig?.tts_voice || "Chloe").catch(() => {});
+      } else {
+        ttsSpeak(last.content, {
+          voice: userConfig?.tts_voice || "",
+          rate: userConfig?.tts_rate || 1,
+          enabled: true,
+        });
+      }
     }
   };
 

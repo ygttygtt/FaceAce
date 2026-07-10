@@ -18,6 +18,7 @@ from app.api.routes import notes as note_routes
 from app.api.routes import practice as practice_routes
 from app.api.routes import questions as questions_routes
 from app.api.routes import simulation as simulation_routes
+from app.api.routes import tts as tts_routes
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.seed import seed_default_data
@@ -55,3 +56,4 @@ app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(ingest_routes.router, prefix="/api")
 app.include_router(bookmark_routes.router, prefix="/api")
 app.include_router(note_routes.router, prefix="/api")
+app.include_router(tts_routes.router, prefix="/api")

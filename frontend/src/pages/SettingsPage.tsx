@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getVoices, ttsSpeak, ttsAvailable } from "../lib/tts";
+import { playCloudTts, stopCloudTts, MIMO_VOICES } from "../lib/ttsCloud";
 import type { LLMProfile, PromptTemplate, UserConfig } from "../types";
 
 const EMPTY_PROFILE = {
@@ -296,10 +297,11 @@ function TTSSection() {
 
   const stopTts = () => {
     if (ttsAvailable()) window.speechSynthesis.cancel();
+    stopCloudTts();
     setSpeaking(false);
   };
 
-  const playTest = () => {
+  const playLocal = () => {
     if (!ttsAvailable() || !testText.trim()) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(testText);
@@ -315,9 +317,21 @@ function TTSSection() {
     window.speechSynthesis.speak(u);
   };
 
+  const playCloud = async () => {
+    if (!testText.trim()) return;
+    setSpeaking(true);
+    try {
+      await playCloudTts(testText, userConfig?.tts_voice || "Chloe");
+    } catch (e: any) {
+      alert("云端 TTS 失败: " + e.message);
+    }
+    setSpeaking(false);
+  };
+
   if (!userConfig) return <div className="text-gray-400 text-sm">加载中...</div>;
 
   const currentVoice = voices.find((v) => v.voiceURI === userConfig.tts_voice);
+  const ttsMode = userConfig.tts_cloud_provider || "local";
 
   return (
     <div className="bg-white border rounded p-4 space-y-4 text-sm">
@@ -338,11 +352,84 @@ function TTSSection() {
 
       <div className="border-t pt-4">
         <div className="font-medium mb-2">语音朗读 (TTS)</div>
-        {!ttsAvailable() ? (
-          <div className="text-xs text-red-500">
-            当前浏览器不支持 Web Speech API,建议用 Chrome/Edge。
+
+        {/* TTS mode selector */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => update.mutate({ tts_cloud_provider: null })}
+            className={`px-3 py-1.5 rounded text-sm border transition-colors ${
+              ttsMode === "local" ? "bg-blue-100 border-blue-300 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            本地语音（浏览器自带）
+          </button>
+          <button
+            onClick={() => update.mutate({ tts_cloud_provider: "mimo" })}
+            className={`px-3 py-1.5 rounded text-sm border transition-colors ${
+              ttsMode === "mimo" ? "bg-blue-100 border-blue-300 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            云端语音（mimo TTS）
+          </button>
+        </div>
+
+        {/* Local TTS settings */}
+        {ttsMode === "local" && (
+          <div className="space-y-3">
+            {!ttsAvailable() ? (
+              <div className="text-xs text-red-500">当前浏览器不支持 Web Speech API，建议用 Chrome/Edge。</div>
+            ) : (
+              <>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={userConfig.tts_enabled}
+                    onChange={(e) => update.mutate({ tts_enabled: e.target.checked })}
+                  />
+                  启用 TTS（朗读面试官消息）
+                </label>
+                <label className="block">
+                  <span className="text-gray-600 text-xs">语音</span>
+                  <select
+                    value={userConfig.tts_voice}
+                    onChange={(e) => update.mutate({ tts_voice: e.target.value })}
+                    className="block border rounded px-2 py-1.5 mt-1 w-full"
+                  >
+                    <option value="">系统默认</option>
+                    {voices
+                      .filter((v) => v.lang.startsWith("zh") || v.lang.startsWith("cmn"))
+                      .map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
+                      ))}
+                  </select>
+                  {voices.filter((v) => v.lang.startsWith("zh")).length === 0 && (
+                    <span className="text-xs text-gray-400">
+                      未检测到中文语音，Windows 可在系统「设置-时间和语言-语音」安装中文语音包。
+                    </span>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="text-gray-600 text-xs">语速 ({userConfig.tts_rate}x)</span>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={userConfig.tts_rate}
+                    onChange={(e) => update.mutate({ tts_rate: Number(e.target.value) })}
+                    className="block w-full mt-1"
+                  />
+                </label>
+                {currentVoice && (
+                  <div className="text-xs text-gray-400">当前语音: {currentVoice.name}（{currentVoice.lang}）</div>
+                )}
+              </>
+            )}
           </div>
-        ) : (
+        )}
+
+        {/* Cloud TTS settings */}
+        {ttsMode === "mimo" && (
           <div className="space-y-3">
             <label className="flex items-center gap-2">
               <input
@@ -350,73 +437,60 @@ function TTSSection() {
                 checked={userConfig.tts_enabled}
                 onChange={(e) => update.mutate({ tts_enabled: e.target.checked })}
               />
-              启用 TTS(朗读面试官消息)
+              启用 TTS（朗读面试官消息）
             </label>
             <label className="block">
-              <span className="text-gray-600 text-xs">语音</span>
+              <span className="text-gray-600 text-xs">语音角色</span>
               <select
                 value={userConfig.tts_voice}
                 onChange={(e) => update.mutate({ tts_voice: e.target.value })}
                 className="block border rounded px-2 py-1.5 mt-1 w-full"
               >
-                <option value="">系统默认</option>
-                {voices
-                  .filter((v) => v.lang.startsWith("zh") || v.lang.startsWith("cmn"))
-                  .map((v) => (
-                    <option key={v.voiceURI} value={v.voiceURI}>
-                      {v.name} ({v.lang})
-                    </option>
-                  ))}
+                {MIMO_VOICES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
-              {voices.filter((v) => v.lang.startsWith("zh")).length === 0 && (
-                <span className="text-xs text-gray-400">
-                  未检测到中文语音,Windows 可在系统「设置-时间和语言-语音」安装中文语音包。
-                </span>
-              )}
             </label>
-            <label className="block">
-              <span className="text-gray-600 text-xs">语速 ({userConfig.tts_rate}x)</span>
-              <input
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={userConfig.tts_rate}
-                onChange={(e) => update.mutate({ tts_rate: Number(e.target.value) })}
-                className="block w-full mt-1"
-              />
-            </label>
-            {currentVoice && (
-              <div className="text-xs text-gray-400">
-                当前语音: {currentVoice.name}（{currentVoice.lang}）
-              </div>
-            )}
-
-            <div className="border-t pt-3">
-              <div className="text-xs text-gray-500 mb-1.5">试听测试</div>
-              <textarea
-                value={testText}
-                onChange={(e) => setTestText(e.target.value)}
-                rows={2}
-                className="w-full border rounded p-2 text-sm"
-              />
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={playTest}
-                  disabled={speaking || !testText.trim()}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
-                >
-                  {speaking ? "朗读中..." : "播放"}
-                </button>
-                {speaking && (
-                  <button onClick={stopTts} className="px-3 py-1.5 border border-red-200 text-red-600 rounded text-sm">
-                    停止
-                  </button>
-                )}
-              </div>
+            <div className="text-xs text-gray-400">
+              使用 mimo-v2.5-tts 模型，通过 LLM profile 的 API Key 调用。音质远好于本地语音。
             </div>
           </div>
         )}
+
+        {/* Test area */}
+        <div className="border-t pt-3 mt-3">
+          <div className="text-xs text-gray-500 mb-1.5">试听测试</div>
+          <textarea
+            value={testText}
+            onChange={(e) => setTestText(e.target.value)}
+            rows={2}
+            className="w-full border rounded p-2 text-sm"
+          />
+          <div className="flex gap-2 mt-2">
+            {ttsMode === "mimo" ? (
+              <button
+                onClick={playCloud}
+                disabled={speaking || !testText.trim()}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                {speaking ? "生成中..." : "播放（云端）"}
+              </button>
+            ) : (
+              <button
+                onClick={playLocal}
+                disabled={speaking || !testText.trim()}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                {speaking ? "朗读中..." : "播放（本地）"}
+              </button>
+            )}
+            {speaking && (
+              <button onClick={stopTts} className="px-3 py-1.5 border border-red-200 text-red-600 rounded text-sm">
+                停止
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
