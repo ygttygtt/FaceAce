@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.core.ids import new_id
 from app.llm.prompts import render_prompt
-from app.llm.service import LLMService
+from app.llm.adapter import LLMAdapterError
+from app.llm.service import LLMService, _parse_and_validate
 from app.models.practice import GradingResult, PracticeRecord
 from app.models.question import Question
 from app.schemas.llm_output import GradingResultLLM
-from app.schemas.practice import PracticeRecordCreate
+from app.schemas.practice import GradingResultOut, PracticeRecordCreate
 
 
 def record_practice(db: Session, data: PracticeRecordCreate) -> PracticeRecord:
@@ -112,14 +113,11 @@ async def grade_answer_stream(
         ):
             full_text += chunk
             yield json.dumps({"delta": chunk}, ensure_ascii=False)
-    except Exception as e:
+    except (LLMAdapterError, ConnectionError) as e:
         yield json.dumps({"error": f"AI 批改失败: {e}", "done": True}, ensure_ascii=False)
         return
 
-    from app.schemas.llm_output import GradingResultLLM as GLM
-    from app.llm.service import _parse_and_validate
-
-    result = _parse_and_validate(full_text, GLM)
+    result = _parse_and_validate(full_text, GradingResultLLM)
     if result is None:
         yield json.dumps({"error": "AI 批改结果解析失败,请重试", "done": True}, ensure_ascii=False)
         return
@@ -146,7 +144,6 @@ async def grade_answer_stream(
     db.commit()
     db.refresh(g)
 
-    from app.schemas.practice import GradingResultOut
     result_out = GradingResultOut.model_validate(g).model_dump(mode="json")
     yield json.dumps({"done": True, "result": result_out}, ensure_ascii=False, default=str)
 

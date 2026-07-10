@@ -1,10 +1,10 @@
 """Question bank routes."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.schemas.question import (
+    AnswerOverrideRequest,
     BatchDeleteRequest,
     BatchMoveRequest,
     QuestionCreate,
@@ -33,8 +33,9 @@ def list_questions(
         db, keyword=keyword, tags=tag_list, difficulty=difficulty, qtype=qtype,
         deck_id=deck_id, bookmarked_only=bookmarked, limit=limit, offset=offset,
     )
+    annotated = question_service.annotate_questions(db, items)
     return {
-        "items": [QuestionOut.model_validate(i).model_dump() for i in items],
+        "items": [QuestionOut.model_validate(d).model_dump() for d in annotated],
         "total": total,
     }
 
@@ -50,7 +51,8 @@ def draw_questions(
 ):
     tag_list = [t for t in tags.split(",") if t] if tags else None
     items = question_service.draw_questions(db, mode, limit, tag_list, difficulty, deck_id)
-    return {"items": [QuestionOut.model_validate(i).model_dump() for i in items]}
+    annotated = question_service.annotate_questions(db, items)
+    return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
 
 
 @router.get("/questions/export")
@@ -63,7 +65,8 @@ def get_question(qid: str, db: Session = Depends(get_db)):
     q = question_service.get_question(db, qid)
     if not q:
         raise HTTPException(status_code=404, detail="题目不存在")
-    return QuestionOut.model_validate(q).model_dump()
+    annotated = question_service.annotate_questions(db, [q])
+    return QuestionOut.model_validate(annotated[0]).model_dump()
 
 
 @router.post("/questions", status_code=201)
@@ -97,10 +100,6 @@ def batch_delete(req: BatchDeleteRequest, db: Session = Depends(get_db)):
 def batch_move(req: BatchMoveRequest, db: Session = Depends(get_db)):
     n = question_service.batch_move(db, req.ids, req.deck_id)
     return {"moved": n}
-
-
-class AnswerOverrideRequest(BaseModel):
-    answer: str | None = None
 
 
 @router.put("/questions/{qid}/answer-override")

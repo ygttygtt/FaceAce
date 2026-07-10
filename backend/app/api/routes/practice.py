@@ -12,10 +12,11 @@ from app.schemas.practice import (
     GradeRequest,
     GradingResultOut,
     PracticeRecordCreate,
+    PracticeRecordDetailOut,
     PracticeRecordOut,
 )
 from app.schemas.question import QuestionOut
-from app.services import practice_service
+from app.services import practice_service, question_service
 
 router = APIRouter(tags=["practice"])
 
@@ -77,20 +78,22 @@ def get_record_detail(record_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="记录不存在")
     grading = db.get(GradingResult, pr.grading_id) if pr.grading_id else None
     question = db.get(Question, pr.question_id) if pr.question_id else None
-    return {
-        "id": pr.id,
-        "question_id": pr.question_id,
-        "user_answer": pr.user_answer,
-        "revealed": pr.revealed,
-        "duration_sec": pr.duration_sec,
-        "grading_id": pr.grading_id,
-        "created_at": pr.created_at.isoformat() if pr.created_at else None,
-        "grading": GradingResultOut.model_validate(grading).model_dump() if grading else None,
-        "question": QuestionOut.model_validate(question).model_dump() if question else None,
-    }
+    detail = PracticeRecordDetailOut(
+        id=pr.id,
+        question_id=pr.question_id,
+        user_answer=pr.user_answer,
+        revealed=pr.revealed,
+        duration_sec=pr.duration_sec,
+        grading_id=pr.grading_id,
+        created_at=pr.created_at,
+        grading=GradingResultOut.model_validate(grading) if grading else None,
+        question=QuestionOut.model_validate(question).model_dump() if question else None,
+    )
+    return detail.model_dump()
 
 
 @router.get("/practice/wrong-questions")
 def wrong_questions(db: Session = Depends(get_db)):
     items = practice_service.wrong_questions(db)
-    return {"items": [QuestionOut.model_validate(q).model_dump() for q in items]}
+    annotated = question_service.annotate_questions(db, items)
+    return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}

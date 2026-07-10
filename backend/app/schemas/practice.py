@@ -50,3 +50,9 @@ class GradeStreamChunk(BaseModel):
     done: bool = False
     result: Optional["GradingResultOut"] = None
     error: Optional[str] = None
+
+
+class PracticeRecordDetailOut(PracticeRecordOut):
+    """Enriched practice record with grading result and question info."""
+    grading: Optional["GradingResultOut"] = None
+    question: Optional[dict] = None

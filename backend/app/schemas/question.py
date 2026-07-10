@@ -71,3 +71,7 @@ class DrawParams(BaseModel):
     limit: int = 10
     tags: list[str] = []
     difficulty: Optional[str] = None
+
+
+class AnswerOverrideRequest(BaseModel):
+    answer: Optional[str] = None

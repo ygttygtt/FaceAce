@@ -4,6 +4,7 @@ import random
 from sqlalchemy.orm import Session
 
 from app.models.bookmark import Bookmark
+from app.models.note import Note
 from app.models.practice import GradingResult
 from app.models.question import Question
 from app.schemas.question import QuestionCreate, QuestionUpdate
@@ -93,6 +94,24 @@ def update_answer_override(db: Session, question_id: str, answer: str | None):
     db.commit()
     db.refresh(q)
     return q
+
+
+def annotate_questions(db: Session, questions: list[Question]) -> list[dict]:
+    """Enrich question dicts with dynamic fields: is_bookmarked, has_notes.
+    Returns list of dicts ready for QuestionOut validation (via from_attributes=False pattern,
+    so callers should use QuestionOut.model_validate(d) not QuestionOut.model_validate(q))."""
+    if not questions:
+        return []
+    qids = [q.id for q in questions]
+    bm_set = set(r[0] for r in db.query(Bookmark.question_id).filter(Bookmark.question_id.in_(qids)).all())
+    note_set = set(r[0] for r in db.query(Note.question_id).filter(Note.question_id.in_(qids)).all())
+    result = []
+    for q in questions:
+        d = {c.name: getattr(q, c.name) for c in q.__table__.columns}
+        d["is_bookmarked"] = q.id in bm_set
+        d["has_notes"] = q.id in note_set
+        result.append(d)
+    return result
 
 
 def delete_question(db: Session, question_id: str) -> bool:
