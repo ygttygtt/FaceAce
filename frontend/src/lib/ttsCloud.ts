@@ -65,11 +65,18 @@ export async function playCloudTts(text: string, voice: string = "Chloe"): Promi
   };
 
   const flushSchedule = (force = false) => {
-    const threshold = force ? 0 : MIN_BYTES;
-    while (byteBuf.byteLength >= threshold) {
-      const chunkSize = force ? byteBuf.byteLength : MIN_BYTES;
-      const chunk = byteBuf.slice(0, chunkSize);
-      byteBuf = byteBuf.slice(chunkSize);
+    if (force) {
+      // Flush everything remaining
+      if (byteBuf.byteLength > 0) {
+        schedulePcm(pcm16ToFloat32(byteBuf));
+        byteBuf = new Uint8Array(0);
+      }
+      return;
+    }
+    // Schedule in fixed-size chunks
+    while (byteBuf.byteLength >= MIN_BYTES) {
+      const chunk = byteBuf.slice(0, MIN_BYTES);
+      byteBuf = byteBuf.slice(MIN_BYTES);
       schedulePcm(pcm16ToFloat32(chunk));
     }
   };
