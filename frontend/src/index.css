@@ -4,42 +4,35 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #fafaf9;
-  --bg-surface: #ffffff;
-  --bg-overlay: #f5f5f4;
-  --text-primary: #1c1917;
-  --text-muted: #78716c;
-  --text-subtle: #a8a29e;
-  --accent: #d4af6a;
-  --accent-hover: #c49a45;
-  --brand-blue: #3b82f6;
-  --brand-blue-hover: #2563eb;
-  --radius-default: 0.625rem;
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-  --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+html,
+body,
+#root {
+  height: 100%;
 }
-
 body {
   margin: 0;
-  font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
 }
 
-html, body, #root { height: 100%; }
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
-
-.prose {
-  --tw-prose-body: var(--text-primary);
-  --tw-prose-headings: var(--text-primary);
-  --tw-prose-links: var(--brand-blue);
-  --tw-prose-code: #1c1917;
-  --tw-prose-pre-bg: #f5f5f4;
+/* markdown prose */
+.prose pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.prose code {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.875em;
+}
+.prose p {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+}
+.prose ul,
+.prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
 }

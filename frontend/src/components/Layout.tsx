@@ -1,41 +1,39 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
-  { to: "/bank", label: "题库", icon: "📚" },
-  { to: "/practice", label: "刷题", icon: "✍️" },
-  { to: "/simulation", label: "仿真面试", icon: "🎯" },
-  { to: "/history", label: "历史", icon: "📋" },
-  { to: "/settings", label: "设置", icon: "⚙️" },
+  { to: "/bank", label: "题库" },
+  { to: "/practice", label: "刷题" },
+  { to: "/simulation", label: "仿真面试" },
+  { to: "/history", label: "历史" },
+  { to: "/settings", label: "设置" },
 ];
 
 export default function Layout() {
   return (
-    <div className="h-full flex flex-col bg-surface">
-      <header className="border-b border-stone-200 bg-white/80 backdrop-blur-sm px-6 py-3 flex items-center gap-8 sticky top-0 z-40">
-        <div className="font-bold text-lg text-ink flex items-center gap-2">
-          <span className="w-8 h-8 bg-brand-400 rounded-lg flex items-center justify-center text-white text-sm">F</span>
-          <span>FaceAce <span className="text-brand-600 font-semibold">面试助手</span></span>
+    <div className="h-full flex flex-col">
+      <header className="border-b bg-white px-6 py-3 flex items-center gap-8 shadow-sm">
+        <div className="font-bold text-lg text-gray-800">
+          FaceAce <span className="text-blue-600">面试助手</span>
         </div>
-        <nav className="flex gap-0.5">
+        <nav className="flex gap-1">
           {navItems.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                `px-3 py-1.5 rounded-md text-sm ${
                   isActive
-                    ? "bg-stone-100 text-ink"
-                    : "text-ink-muted hover:text-ink hover:bg-stone-50"
+                    ? "bg-blue-100 text-blue-700 font-medium"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`
               }
             >
-              <span className="mr-1.5">{n.icon}</span>
               {n.label}
             </NavLink>
           ))}
         </nav>
       </header>
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-gray-50">
         <Outlet />
       </main>
     </div>
