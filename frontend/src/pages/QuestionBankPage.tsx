@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import MarkdownView from "../components/MarkdownView";
 import type { Deck, Question } from "../types";
 
 export default function QuestionBankPage() {
+  const [searchParams] = useSearchParams();
+  const initialBookmarked = searchParams.get("bookmarked") === "true";
   const [keyword, setKeyword] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [qtype, setQtype] = useState("");
-  const [deckId, setDeckId] = useState<string | null>(null); // null = all
+  const [deckId, setDeckId] = useState<string | null>(null);
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(initialBookmarked);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<Question | null>(null);
   const [newDeckName, setNewDeckName] = useState("");
@@ -20,13 +23,14 @@ export default function QuestionBankPage() {
   const decks: Deck[] = decksData?.items || [];
 
   const { data, isLoading } = useQuery({
-    queryKey: ["questions", keyword, difficulty, qtype, deckId],
+    queryKey: ["questions", keyword, difficulty, qtype, deckId, bookmarkedOnly],
     queryFn: () =>
       api.listQuestions({
         keyword: keyword || undefined,
         difficulty: difficulty || undefined,
         qtype: qtype || undefined,
         deck_id: deckId || undefined,
+        bookmarked: bookmarkedOnly || undefined,
         limit: 500,
       }),
   });
@@ -135,14 +139,28 @@ export default function QuestionBankPage() {
         )}
         <div
           className={`px-2 py-1.5 rounded cursor-pointer text-sm ${
-            deckId === null ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"
+            deckId === null && !bookmarkedOnly ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"
           }`}
           onClick={() => {
             setDeckId(null);
+            setBookmarkedOnly(false);
             setSelected(new Set());
           }}
         >
           全部题目
+        </div>
+        <div
+          className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center gap-1 ${
+            bookmarkedOnly ? "bg-yellow-100 text-yellow-700" : "hover:bg-gray-100"
+          }`}
+          onClick={() => {
+            setBookmarkedOnly(!bookmarkedOnly);
+            setDeckId(null);
+            setSelected(new Set());
+          }}
+        >
+          <span>⭐</span>
+          <span>收藏题目</span>
         </div>
         {decks.map((d) => (
           <div
@@ -152,6 +170,7 @@ export default function QuestionBankPage() {
             }`}
             onClick={() => {
               setDeckId(d.id);
+              setBookmarkedOnly(false);
               setSelected(new Set());
             }}
           >
@@ -165,10 +184,10 @@ export default function QuestionBankPage() {
                     deleteDeck.mutate(d.id);
                   }
                 }}
-                className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                className="w-5 h-5 flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-red-400 rounded transition-all opacity-0 group-hover:opacity-100"
                 title="删除题库"
               >
-                ×
+                ✕
               </button>
             </div>
           </div>
@@ -182,7 +201,8 @@ export default function QuestionBankPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold">
-            题库管理{deckId && decks.find((d) => d.id === deckId)
+            {bookmarkedOnly ? "⭐ 收藏题目" : "题库管理"}
+            {deckId && decks.find((d) => d.id === deckId)
               ? ` · ${decks.find((d) => d.id === deckId)!.name}`
               : ""}
           </h1>

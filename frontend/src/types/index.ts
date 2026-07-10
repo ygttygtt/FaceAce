@@ -153,6 +153,7 @@ export interface Bookmark {
   id: string;
   question_id: string;
   created_at: string;
+  question?: Question | null;
 }
 
 export interface Note {

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
+from app.models.question import Question
 from app.schemas.bookmark import BookmarkCreate, BookmarkOut
+from app.schemas.question import QuestionOut
 from app.services import bookmark_service
 
 router = APIRouter(tags=["bookmarks"])
@@ -15,7 +17,13 @@ def toggle_bookmark(data: BookmarkCreate, db: Session = Depends(get_db)):
 @router.get("/bookmarks")
 def list_bookmarks(db: Session = Depends(get_db)):
     items = bookmark_service.list_bookmarks(db)
-    return {"items": [BookmarkOut.model_validate(b).model_dump() for b in items]}
+    result = []
+    for b in items:
+        bm = BookmarkOut.model_validate(b).model_dump()
+        q = db.get(Question, b.question_id)
+        bm["question"] = QuestionOut.model_validate(q).model_dump() if q else None
+        result.append(bm)
+    return {"items": result}
 
 
 @router.get("/bookmarks/check/{question_id}")

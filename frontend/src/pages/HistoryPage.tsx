@@ -207,17 +207,42 @@ export default function HistoryPage() {
             <div className="text-gray-400 text-sm py-8 text-center">暂无收藏</div>
           ) : (
             <div className="space-y-2">
-              {bookmarks?.items.map((b) => (
-                <div key={b.id} className="bg-white border rounded-lg p-3 text-sm">
-                  <div className="text-xs text-gray-400">题目 ID: {b.question_id}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">收藏于 {new Date(b.created_at).toLocaleString()}</div>
-                </div>
-              ))}
+              {bookmarks?.items.map((b) => {
+                const q = (b as any).question;
+                return (
+                  <div key={b.id} className="bg-white border rounded-lg p-3 text-sm hover:border-yellow-300 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {q?.question_text || `题目 ${b.question_id}（已删除）`}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                          {q?.difficulty && <span>{q.difficulty}</span>}
+                          {q?.question_type && <span>{q.question_type}</span>}
+                          {q?.tags?.slice(0, 3).map((t: string) => (
+                            <span key={t} className="text-blue-600">#{t}</span>
+                          ))}
+                          <span className="text-gray-400">收藏于 {new Date(b.created_at).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-3 shrink-0">
+                        <Link
+                          to="/bank"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.location.href = `/bank`;
+                          }}
+                          className="px-2 py-1 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50"
+                        >
+                          题库查看
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          <Link to="/bank?bookmarked=true" className="text-sm text-blue-600 hover:underline mt-4 inline-block">
-            在题库中查看收藏 →
-          </Link>
         </div>
       )}
 
