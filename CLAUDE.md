@@ -10,30 +10,16 @@ FaceAce 是一个本地 Web 面试助手，核心功能：
 
 ## 常用命令
 
-### 开发模式（双进程热重载）
+### 开发模式（唯一启动方式）
 
 ```bash
-# Windows 一键启动
+# 一键启动前后端（自动杀旧进程 → 启动后端 :8000 + 前端 :5173 → 打开浏览器）
 dev.bat
-
-# 或手动分别启动：
-# 后端
-cd backend
-.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
-
-# 前端
-cd frontend
-npm run dev    # http://localhost:5173
 ```
 
-### 生产模式（单进程，后端托管前端）
-
-```bash
-start.bat
-# 或手动：
-cd frontend && npm run build
-cd backend && .venv/Scripts/python.exe -m uvicorn app.main:app --port 8000
-```
+- 后端是纯 API 服务器，不托管任何前端页面
+- 前端始终通过 Vite dev server（`http://localhost:5173`）访问
+- 访问 `http://localhost:8000` 只会看到 API 文档页，看不到前端
 
 ### CLI 导入文档
 
@@ -124,7 +110,7 @@ frontend/src/
 
 4. **题库标准格式**：单题包含 `question_text / question_type / difficulty / tags / options / standard_answer / answer_points / explanation`。支持追问链分组（`group_id / group_seq / group_label`）。
 
-5. **单进程部署**：当 `frontend/dist` 存在时，FastAPI 直接托管前端 SPA（`main.py` 中的 SPA fallback）。
+5. **前后端严格分离**：后端是纯 JSON API 服务，不托管任何前端页面。前端由 Vite dev server 独立运行，通过 Vite proxy 转发 `/api` 到后端。永远不构建 `frontend/dist` 给后端用。
 
 6. **ID 生成**：所有实体 ID 使用 `uuid.uuid4().hex`（32 位 hex 字符串），见 `app/core/ids.py`。
 

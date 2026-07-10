@@ -1,19 +1,13 @@
-"""FastAPI application entry point.
+"""FastAPI application entry point — API only.
 
-Run dev server:
-    cd backend
-    uvicorn app.main:app --reload --port 8000
-
-Single-process (production-ish): build the frontend once (npm run build in frontend/),
-then this app serves the built SPA from frontend/dist — no separate vite process needed.
+The backend is a pure JSON API server. The frontend is always served
+by Vite (dev) or a static file server (prod). They are independent
+processes. Use dev.bat to start both.
 """
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import bookmarks as bookmark_routes
 from app.api.routes import config as config_routes
@@ -29,9 +23,6 @@ from app.core.logging import setup_logging
 from app.db.seed import seed_default_data
 from app.db.session import SessionLocal, init_db
 
-# frontend build output (served by this app in single-process mode)
-FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,7 +36,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FaceAce 面试助手", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="FaceAce 面试助手", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,29 +55,3 @@ app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(ingest_routes.router, prefix="/api")
 app.include_router(bookmark_routes.router, prefix="/api")
 app.include_router(note_routes.router, prefix="/api")
-
-
-# ---- single-process SPA hosting (only when frontend is built) ----
-if FRONTEND_DIST.exists():
-    # built JS/CSS chunks live under /assets
-    _assets = FRONTEND_DIST / "assets"
-    if _assets.exists():
-        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
-
-    @app.get("/")
-    async def serve_root():
-        """Serve index.html for root path."""
-        return FileResponse(FRONTEND_DIST / "index.html")
-
-    @app.get("/{full_path:path}")
-    async def spa_fallback(full_path: str):
-        # unmatched API paths should 404 as JSON, not return index.html
-        if full_path.startswith("api"):
-            raise HTTPException(status_code=404, detail="Not Found")
-        # serve other real static files at dist root (favicon, robots.txt, etc.)
-        if full_path:
-            candidate = FRONTEND_DIST / full_path
-            if candidate.is_file():
-                return FileResponse(candidate)
-        # everything else (SPA routes like /practice) → index.html
-        return FileResponse(FRONTEND_DIST / "index.html")
