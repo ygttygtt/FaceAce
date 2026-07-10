@@ -30,7 +30,7 @@ function pcm16ToFloat32(bytes: Uint8Array): Float32Array {
   return float32;
 }
 
-export async function playCloudTts(text: string, voice: string = "Chloe"): Promise<void> {
+export async function playCloudTts(text: string, voice: string = "冰糖"): Promise<void> {
   const res = await fetch(`/api/tts/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -113,4 +113,10 @@ export async function playCloudTts(text: string, voice: string = "Chloe"): Promi
   });
 }
 
-export const MIMO_VOICES = ["Chloe"];
+export const MIMO_VOICES = [
+  { id: "mimo_default", label: "默认（冰糖）" },
+  { id: "冰糖", label: "冰糖（中文女声）" },
+  { id: "茉莉", label: "茉莉（中文女声）" },
+  { id: "苏打", label: "苏打（中文男声）" },
+  { id: "白桦", label: "白桦（中文男声）" },
+];

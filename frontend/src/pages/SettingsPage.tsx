@@ -447,7 +447,7 @@ function TTSSection() {
                 className="block border rounded px-2 py-1.5 mt-1 w-full"
               >
                 {MIMO_VOICES.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v.id} value={v.id}>{v.label}</option>
                 ))}
               </select>
             </label>

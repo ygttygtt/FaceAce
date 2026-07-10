@@ -4,7 +4,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -26,15 +26,17 @@ async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
     payload = {
         "model": "mimo-v2.5-tts",
         "messages": [
-            {"role": "user", "content": ""},
+            {"role": "user", "content": "用自然流畅的语调朗读"},
             {"role": "assistant", "content": text},
         ],
         "audio": {
             "format": "pcm16",
-            "voice": voice or "Chloe",
+            "voice": voice or "冰糖",
         },
         "stream": True,
     }
+
+    logger.info("TTS request: url=%s, voice=%s, text_len=%d", url, voice, len(text))
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream("POST", url, headers=headers, json=payload) as resp:
@@ -42,6 +44,8 @@ async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
                 body = await resp.aread()
                 logger.error("TTS API error %d: %s", resp.status_code, body[:500])
                 return
+            chunk_count = 0
+            total_bytes = 0
             async for line in resp.aiter_lines():
                 if not line or not line.startswith("data: "):
                     continue
@@ -60,22 +64,25 @@ async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
                     audio = delta.get("audio")
                     if audio and isinstance(audio, dict) and "data" in audio:
                         pcm_bytes = base64.b64decode(audio["data"])
+                        chunk_count += 1
+                        total_bytes += len(pcm_bytes)
                         yield pcm_bytes
                 except Exception as e:  # noqa: BLE001
                     logger.warning("TTS chunk parse error: %s", e)
+            logger.info("TTS done: %d chunks, %d bytes PCM", chunk_count, total_bytes)
 
 
 @router.post("/tts/speak")
 async def tts_speak(body: dict, db: Session = Depends(get_db)):
     """Stream PCM16 audio from mimo TTS.
 
-    Request body: {"text": "...", "voice": "Chloe"}
+    Request body: {"text": "...", "voice": "冰糖"}
     Response: application/octet-stream of PCM16LE 24kHz mono audio.
     """
     text = body.get("text", "")
-    voice = body.get("voice", "Chloe")
+    voice = body.get("voice", "冰糖")
     if not text.strip():
-        return {"error": "text is required"}
+        return JSONResponse({"error": "text is required"}, status_code=400)
 
     # Resolve LLM profile from user config → active profile → default
     profile = None
@@ -85,7 +92,9 @@ async def tts_speak(body: dict, db: Session = Depends(get_db)):
     if not profile:
         profile = db.query(LLMProfile).filter(LLMProfile.is_default.is_(True)).first()
     if not profile:
-        return {"error": "未配置 LLM profile，无法使用云端 TTS"}
+        return JSONResponse({"error": "未配置 LLM profile，无法使用云端 TTS"}, status_code=400)
+
+    logger.info("TTS: using profile %s (%s)", profile.name, profile.base_url)
 
     async def audio_stream():
         async for pcm_chunk in _stream_tts(text, voice, profile.base_url, profile.api_key):

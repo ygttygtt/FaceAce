@@ -36,7 +36,7 @@ export default function TTSButton({ text }: { text: string }) {
     if (isCloud) {
       setSpeaking(true);
       try {
-        await playCloudTts(text, userConfig.tts_voice || "Chloe");
+        await playCloudTts(text, userConfig.tts_voice || "冰糖");
       } catch {
         // silently fail
       }
