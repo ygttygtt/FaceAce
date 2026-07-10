@@ -187,6 +187,23 @@ def delete_records_by_question(db: Session, question_id: str) -> int:
     return count
 
 
+def batch_delete_records(db: Session, record_ids: list[str]) -> int:
+    """Batch delete practice records by IDs, including their grading results."""
+    count = 0
+    for rid in record_ids:
+        pr = db.get(PracticeRecord, rid)
+        if not pr:
+            continue
+        if pr.grading_id:
+            gr = db.get(GradingResult, pr.grading_id)
+            if gr:
+                db.delete(gr)
+        db.delete(pr)
+        count += 1
+    db.commit()
+    return count
+
+
 def wrong_questions(db: Session) -> list[Question]:
     wrong_ids = [
         r[0]

@@ -15,7 +15,7 @@ from app.schemas.practice import (
     PracticeRecordDetailOut,
     PracticeRecordOut,
 )
-from app.schemas.question import QuestionOut
+from app.schemas.question import BatchDeleteRequest, QuestionOut
 from app.services import practice_service, question_service
 
 router = APIRouter(tags=["practice"])
@@ -110,3 +110,9 @@ def delete_record(record_id: str, db: Session = Depends(get_db)):
     if not practice_service.delete_record(db, record_id):
         raise HTTPException(status_code=404, detail="记录不存在")
     return None
+
+
+@router.post("/practice/records/batch-delete")
+def batch_delete_records(req: BatchDeleteRequest, db: Session = Depends(get_db)):
+    n = practice_service.batch_delete_records(db, req.ids)
+    return {"deleted": n}

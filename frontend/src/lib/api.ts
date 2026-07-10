@@ -113,6 +113,11 @@ export const api = {
     req<{ items: any[] }>(`/practice/records${qs({ question_id })}`),
   deleteRecord: (record_id: string) =>
     req<void>(`/practice/records/${record_id}`, { method: "DELETE" }),
+  batchDeleteRecords: (ids: string[]) =>
+    req<{ deleted: number }>(`/practice/records/batch-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   wrongQuestions: () => req<{ items: Question[] }>(`/practice/wrong-questions`),
 
   // ---- bookmarks ----

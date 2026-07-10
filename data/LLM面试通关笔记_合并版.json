@@ -1,0 +1,2109 @@
+{
+ "questions": [
+  {
+   "question_text": "先讲一下 Transformer 里 Attention 的完整计算流程吧。",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "梯度",
+    "训练稳定性"
+   ],
+   "options": null,
+   "standard_answer": "- 输入序列 → 分别乘 `W_Q/W_K/W_V` 得到 Q、K、V 三个矩阵；\n- 算相似度：`Q·Kᵀ`，再除以 `√dₖ` 缩放；\n- `softmax` 归一化得到注意力权重（每行和为 1）；\n- 权重与 V 做加权求和，输出每个位置「该关注谁、关注多少」的融合表示。\n- 本质一句话：**动态计算「谁重要」，再做加权平均**——这是 Transformer 取代 RNN 的关键（任意两词一步直达，可并行、无长程梯度消失）。",
+   "answer_points": [
+    "输入序列 → 分别乘 `W_Q/W_K/W_V` 得到 Q、K、V 三个矩阵…",
+    "算相似度：`Q·Kᵀ`，再除以 `√dₖ` 缩放；",
+    "`softmax` 归一化得到注意力权重（每行和为 1）；",
+    "权重与 V 做加权求和，输出每个位置「该关注谁、关注多少」的融合表示。",
+    "本质一句话：**动态计算「谁重要」，再做加权平均**——这是 Transfo…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 1,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Self-Attention 和 Cross-Attention 有什么区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "- **Self-Attention**：Q/K/V 全部来自**同一个序列**（比如编码器内部），用来让序列内部互相看；\n- **Cross-Attention**：Q 来自一个序列，K/V 来自**另一个序列**——它是连接两条信息流的桥。经典机器翻译里解码端拿自己当 Q，去查编码端给的 K/V。",
+   "answer_points": [
+    "**Self-Attention**：Q/K/V 全部来自**同一个序列**…",
+    "**Cross-Attention**：Q 来自一个序列，K/V 来自**另…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 2,
+   "group_id": "g1",
+   "group_seq": 1,
+   "group_label": "Self-Attention"
+  },
+  {
+   "question_text": "Self-Attention 里 Key 和 Value 能相同吗？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "Transformer",
+    "Attention"
+   ],
+   "options": null,
+   "standard_answer": "数值上通常**不同**。虽然都从同一输入来，但走的是**两个独立可学习的投影矩阵**，职责分离：K 负责和 Q 算「匹配度」，V 负责提供「最终被聚合的内容」。",
+   "answer_points": [
+    "数值上通常**不同**",
+    "虽然都从同一输入来",
+    "但走的是**两个独立可学习的投影矩阵**",
+    "职责分离：K 负责和 Q 算「匹配度」",
+    "V 负责提供「最终被聚合的内容」"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 3,
+   "group_id": "g1",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "点积注意力为什么要除以 `√dₖ`？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "梯度"
+   ],
+   "options": null,
+   "standard_answer": "`dₖ` 越大，点积 `q·k` 的绝对值越大，softmax 输入进极端区，输出趋近 one-hot，梯度趋近于 0、难训。除以 `√dₖ` 把量纲压回合理范围，保留有效梯度。（记忆：防「softmax 饱和 → 梯度消失」）",
+   "answer_points": [
+    "`dₖ` 越大",
+    "点积 `q·k` 的绝对值越大",
+    "softmax 输入进极端区",
+    "输出趋近 one-hot",
+    "梯度趋近于 0、难训"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 4,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "多头注意力（MHA）里每个 head 为什么要把维度降到 `d_model/h`？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention"
+   ],
+   "options": null,
+   "standard_answer": "工程约束：想要 h 个头看不同子空间，但 h 个「全维度头」太贵。把 `d_model` 均分给 h 个头后，**总计算量和单头全维度几乎一致**，等于「同样算力买到 h 倍视角」。",
+   "answer_points": [
+    "工程约束：想要 h 个头看不同子空间",
+    "但 h 个「全维度头」太贵",
+    "把 `d_model` 均分给 h 个头后",
+    "**总计算量和单头全维度几乎一致**",
+    "等于「同样算力买到 h 倍视角」"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 5,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Attention 和全连接层（FC）本质区别是什么？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention"
+   ],
+   "options": null,
+   "standard_answer": "Attention 是「大脑中枢」——算权重、融合信息，通常**不改维度**；FC 是「通道适配器」——做维度变换和特征重组，用固定权重把输入映射到目标维度。",
+   "answer_points": [
+    "Attention 是「大脑中枢」——算权重、融合信息",
+    "通常**不改维度**",
+    "FC 是「通道适配器」——做维度变换和特征重组",
+    "用固定权重把输入映射到目标维度"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 6,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "现在主流大模型用 MHA、MQA 还是 GQA？区别和取舍？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "FlashAttention",
+    "KV Cache"
+   ],
+   "options": null,
+   "standard_answer": "（对比表）\n\n| 方案 | 核心做法 | 解决的痛点 | 效果 |\n|---|---|---|---|\n| MHA | 每个 head 独立 Q/K/V | — | 表达最强，但 KV Cache 最大 |\n| MQA | 所有 head **共享一份** K/V | 显存/推理慢 | KV Cache 压到 1/H，快但略损质量 |\n| GQA | head **分组**共享 K/V | 均衡 | 几乎无损、Llama/Qwen 标配 |\n\n- 记忆点：**MQA/GQA 都是为省 KV Cache 显存**；GQA（结构优化）和 FlashAttention（实现优化）是**叠加关系**，主流模型两者一起用。",
+   "answer_points": [
+    "（对比表）",
+    "| 方案 | 核心做法 | 解决的痛点 | 效果 |",
+    "|---|---|---|---|",
+    "| MHA | 每个 head 独立 Q/K/V | — | 表达最强",
+    "但 KV Cache 最大 |"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 7,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "FlashAttention 解决了什么？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "FlashAttention",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "标准 Attention 的瓶颈不是算力而是**显存读写（IO）**——要物化 `N×N` 的注意力矩阵，显存 O(N²)。FlashAttention 用**分块计算 + 在线 softmax + 重计算**，不物化大矩阵，把 HBM 访问从 O(N²) 降到 O(N)，既省显存又提速，是现代推理框架的基本盘。",
+   "answer_points": [
+    "标准 Attention 的瓶颈不是算力而是**显存读写（IO）**——要物…",
+    "显存 O(N²)",
+    "FlashAttention 用**分块计算 + 在线 softmax + …",
+    "不物化大矩阵",
+    "把 HBM 访问从 O(N²) 降到 O(N)"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 8,
+   "group_id": "g2",
+   "group_seq": 1,
+   "group_label": "FlashAttention"
+  },
+  {
+   "question_text": "为什么现在大家用 Decoder-only（如 Llama），而不是 Encoder-Decoder？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "RLHF",
+    "微调",
+    "训练流程"
+   ],
+   "options": null,
+   "standard_answer": "三个统一带来规模效应：① **目标统一**（都是预测下一个 token）；② **数据统一**（海量无标注文本都能用）；③ **规模效应**（同一套预训练可适配下游各种任务，SFT/RLHF 只需在尾部接）。Encoder-Decoder 在翻译等任务仍有价值，但通用对话场景 Decoder-only 性价比最高。",
+   "answer_points": [
+    "三个统一带来规模效应：① **目标统一**（都是预测下一个 token）",
+    "② **数据统一**（海量无标注文本都能用）",
+    "③ **规模效应**（同一套预训练可适配下游各种任务",
+    "SFT/RLHF 只需在尾部接）",
+    "Encoder-Decoder 在翻译等任务仍有价值"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 9,
+   "group_id": "g2",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "除了标准 MHA，还了解哪些注意力变体？比如稀疏注意力。",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Transformer",
+    "Attention",
+    "文档切分",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "还有空间/通道注意力、稀疏注意力等。以 DeepSeek-V3 的 **NSA（Native Sparse Attention）** 为例：把 KV 分块压缩成摘要 → 三路并行（压缩全局 / 按摘要权重选 Top-K 块精算 / 固定滑动窗口保局部）→ 门控网络动态融合，在长上下文下大幅省算力。",
+   "answer_points": [
+    "还有空间/通道注意力、稀疏注意力等",
+    "以 DeepSeek-V3 的 **NSA（Native Sparse At…",
+    "在长上下文下大幅省算力"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 10,
+   "group_id": "g2",
+   "group_seq": 3,
+   "group_label": null
+  },
+  {
+   "question_text": "为什么现在主流 LLM（Llama/Qwen/DeepSeek）用 RoPE，而不是 sin/cos 绝对位置编码？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "位置编码",
+    "归一化",
+    "RoPE",
+    "Attention",
+    "KV Cache"
+   ],
+   "options": null,
+   "standard_answer": "RoPE 三点核心优势：\n1. **显式建模相对位置**：对 Q/K 做旋转后，注意力分数只依赖两 token 的**相对距离** `(m−n)`，更符合语言「关注距离」的逻辑；\n2. **长度外推强**：旋转角连续，遇训练时未见过的更长序列仍能生成平滑表示（sin/cos 或可学习编码在超长序列会因「陌生位置」失效）；\n3. **推理友好**：旋转是线性操作，可配合 KV Cache——只存未融合的原始 K/V，按当前位置动态生成旋转后版本，长文本显存大降。",
+   "answer_points": [
+    "RoPE 三点核心优势：",
+    "**显式建模相对位置**：对 Q/K 做旋转后，注意力分数只依赖两 toke…",
+    "**长度外推强**：旋转角连续，遇训练时未见过的更长序列仍能生成平滑表示（s…",
+    "**推理友好**：旋转是线性操作，可配合 KV Cache——只存未融合的原…"
+   ],
+   "explanation": "补充：还有 **ALiBi**（直接给注意力加「线性距离惩罚」，代表 MPT/BLOOM），不需要在权重里存位置向量，外推也不错；但 RoPE 因工程兼容性和表达力平衡成为当前主流。",
+   "code_template": null,
+   "source_raw_index": 11,
+   "group_id": "g3",
+   "group_seq": 1,
+   "group_label": "现在主流 LLM（Llama"
+  },
+  {
+   "question_text": "RoPE 具体是怎么做到「相对位置」效果的？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "位置编码",
+    "归一化",
+    "RoPE",
+    "Attention"
+   ],
+   "options": null,
+   "standard_answer": "对位置 m 的 Q、位置 n 的 K 分别乘旋转矩阵 `R(m)、R(n)`，二者内积经三角恒等式化简后**只含 `(m−n)` 项**，于是注意力分数仅由相对距离决定。",
+   "answer_points": [
+    "对位置 m 的 Q、位置 n 的 K 分别乘旋转矩阵 `R(m)、R(n)`",
+    "二者内积经三角恒等式化简后**只含 `(m−n)` 项**",
+    "于是注意力分数仅由相对距离决定"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 12,
+   "group_id": "g3",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "RMSNorm 相比 LayerNorm 好在哪？为什么 LLM 普遍用它？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "位置编码",
+    "归一化",
+    "RMSNorm",
+    "LayerNorm",
+    "梯度"
+   ],
+   "options": null,
+   "standard_answer": "- **去掉「减均值」步骤**：LayerNorm 成功的关键是「重新缩放」而非「重新居中」，RMSNorm 只保留缩放，计算量比 LayerNorm **减少约 7%~64%**（已验证，对超大模型很关键）；\n- 效果不损，还能在极深网络中**缓解梯度消失**（非零均值特性）。\n- 记忆锚点：LLaMA 系列用 RMSNorm，BERT 用 LayerNorm。",
+   "answer_points": [
+    "**去掉「减均值」步骤**：LayerNorm 成功的关键是「重新缩放」而非…",
+    "效果不损，还能在极深网络中**缓解梯度消失**（非零均值特性）。",
+    "记忆锚点：LLaMA 系列用 RMSNorm，BERT 用 LayerNor…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 13,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "LayerNorm 在 BERT 里沿哪个方向归一化？和 BatchNorm 区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "位置编码",
+    "归一化",
+    "LayerNorm",
+    "BatchNorm",
+    "训练稳定性"
+   ],
+   "options": null,
+   "standard_answer": "BERT 的 LayerNorm 是**每个样本沿 token 维度**算均值方差、对自身归一化（与 batch 无关）；BatchNorm 是**跨 batch 维度**归一化。LayerNorm 一般放在每个编码器子层（注意力/FFN）之后，配残差连接。",
+   "answer_points": [
+    "BERT 的 LayerNorm 是**每个样本沿 token 维度**算均…",
+    "BatchNorm 是**跨 batch 维度**归一化",
+    "LayerNorm 一般放在每个编码器子层（注意力/FFN）之后",
+    "配残差连接"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 14,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "大模型的分词器（Tokenizer）是怎么工作的？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Tokenizer",
+    "BERT"
+   ],
+   "options": null,
+   "standard_answer": "- 模型只认整数，Tokenizer 是「文字 ↔ 整数」的桥梁，主流是**子词分词 BPE**；\n- BPE 三步：初始化字母表 → 反复合并最高频相邻 pair → 达到预设词表大小；\n- 工程影响：API 按 token 计费，约 1000 汉字 ≈ 1000~1500 token，**上生产前要用真实 tokenizer 跑一遍算成本**。",
+   "answer_points": [
+    "模型只认整数，Tokenizer 是「文字 ↔ 整数」的桥梁，主流是**子词…",
+    "BPE 三步：初始化字母表 → 反复合并最高频相邻 pair → 达到预设词…",
+    "工程影响：API 按 token 计费，约 1000 汉字 ≈ 1000~1…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 15,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "BERT 为什么常用字粒度（char-level）而不是词粒度？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Tokenizer",
+    "BERT"
+   ],
+   "options": null,
+   "standard_answer": "- 字粒度：词表小（2~3万）减参；基本解决未登录词 OOV；不依赖外部分词工具。缺点：破坏词意（「苹果」拆开）、序列变长；\n- 词粒度：语义完整、序列短，但词表爆炸（几十万+）、严重 OOV、依赖分词工具引入误差。\n- （注：BERT 中文实际常用 **WordPiece 子词**，介于字/词之间。）",
+   "answer_points": [
+    "字粒度：词表小（2~3万）减参；基本解决未登录词 OOV；不依赖外部分词工具…",
+    "词粒度：语义完整、序列短，但词表爆炸（几十万+）、严重 OOV、依赖分词工具…",
+    "（注：BERT 中文实际常用 **WordPiece 子词**，介于字/词之…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 16,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "BERT 只有 Encoder，它的 mask 有哪几种？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Tokenizer",
+    "BERT",
+    "训练流程"
+   ],
+   "options": null,
+   "standard_answer": "两类：① **Padding Mask**（注意力掩码，处理变长序列，忽略 [PAD]）；② **MLM Mask**（预训练任务掩码，随机遮盖 token）。注意 BERT **没有 Decoder、没有 causal mask**。",
+   "answer_points": [
+    "两类：① **Padding Mask**（注意力掩码",
+    "处理变长序列",
+    "忽略 [PAD]）",
+    "② **MLM Mask**（预训练任务掩码",
+    "随机遮盖 token）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 17,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "为什么 MLM 遮盖比例是 15%？可以是别的吗？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Tokenizer",
+    "BERT"
+   ],
+   "options": null,
+   "standard_answer": "基于信息冗余理论（自然语言约 50%~70% 冗余），盖 15% 留 85% 上下文仍可推断。太低（5~10%）信号不足易过拟合；太高（20~30%）破坏连贯性接近瞎猜。15% 是实验甜点。",
+   "answer_points": [
+    "基于信息冗余理论（自然语言约 50%~70% 冗余）",
+    "盖 15% 留 85% 上下文仍可推断",
+    "太低（5~10%）信号不足易过拟合",
+    "太高（20~30%）破坏连贯性接近瞎猜",
+    "15% 是实验甜点"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 18,
+   "group_id": "g4",
+   "group_seq": 1,
+   "group_label": "MLM 遮盖比例是 15%？"
+  },
+  {
+   "question_text": "[CLS] 的作用？BERT 的非线性从哪来？",
+   "question_type": "concept",
+   "difficulty": "medium",
+   "tags": [
+    "Tokenizer",
+    "BERT",
+    "LayerNorm"
+   ],
+   "options": null,
+   "standard_answer": "[CLS] 标在句首，聚合全局语义用于分类。非线性来自三层复合：① Softmax（注意力的竞争性）；② GELU（FFN 主力，贡献最大）；③ LayerNorm（统计依赖非线性），经多层残差叠加成强表达力。",
+   "answer_points": [
+    "[CLS] 标在句首",
+    "聚合全局语义用于分类",
+    "非线性来自三层复合：① Softmax（注意力的竞争性）",
+    "② GELU（FFN 主力",
+    "贡献最大）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 19,
+   "group_id": "g4",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "BERT 预训练为什么用 warm-up？长文本（>512）怎么办？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "Tokenizer",
+    "BERT",
+    "梯度",
+    "训练稳定性",
+    "训练流程"
+   ],
+   "options": null,
+   "standard_answer": "warm-up 防止初期大梯度破坏随机初始化、稳定 Adam 动量。长文本三路径：先分类后聚合 / 先聚合后分类（最稳基线）/ 引入额外序列模型（如层次分类、NER）建模片段关系。",
+   "answer_points": [
+    "warm-up 防止初期大梯度破坏随机初始化、稳定 Adam 动量",
+    "长文本三路径：先分类后聚合 / 先聚合后分类（最稳基线）/ 引入额外序列模型…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 20,
+   "group_id": "g4",
+   "group_seq": 3,
+   "group_label": null
+  },
+  {
+   "question_text": "一个大模型是怎么训练出来的？分哪几个阶段？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "预训练",
+    "训练流程",
+    "DPO",
+    "GRPO",
+    "RLHF"
+   ],
+   "options": null,
+   "standard_answer": "三阶段，一句话记：**预训练「读万卷书」→ SFT「学会问答」→ 对齐「学会好好说话」**。\n- **预训练**：预测下一个 token（CLM），吃互联网文本/代码/书籍，规模达 15T token（Llama 3 级别），决定能力天花板；\n- **SFT（监督微调）**：用（指令, 回答）对把「续写机」改成「对话机」，**质量远重于数量**（几千条高质量常优于几十万条低质）；\n- **对齐**：用 RLHF/DPO/GRPO 把模型调成「有用且无害」，塑造偏好与价值观。",
+   "answer_points": [
+    "三阶段",
+    "一句话记：**预训练「读万卷书」→ SFT「学会问答」→ 对齐「学会好好说话…",
+    "**预训练**：预测下一个 token（CLM），吃互联网文本/代码/书籍，…",
+    "**SFT（监督微调）**：用（指令, 回答）对把「续写机」改成「对话机」，…",
+    "**对齐**：用 RLHF/DPO/GRPO 把模型调成「有用且无害」，塑造…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 21,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "讲讲 Scaling Law 和涌现能力。",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "预训练",
+    "训练流程",
+    "ScalingLaw"
+   ],
+   "options": null,
+   "standard_answer": "- **Scaling Law**：loss 与模型规模 N、数据 D、算力 C 呈**幂律关系**；Chinchilla 定律（2022）给定算力下参数:数据 ≈ **1:20** 最优；Llama 3 时代出现「小参数+海量数据」趋势（8B 配 15T，约 1:1875）；\n- **涌现能力**：规模过临界点（常 50B~100B）后某些能力突变式出现；但有学术争议（可能是评估指标不连续造成的「假象」），结论：**能力跃迁客观存在，但没有统一魔法临界点**。\n- 工程启发：别盲目堆参数，重视数据规模，按任务定模型大小（推理用大、分类用小）。",
+   "answer_points": [
+    "**Scaling Law**：loss 与模型规模 N、数据 D、算力 C…",
+    "**涌现能力**：规模过临界点（常 50B~100B）后某些能力突变式出现；…",
+    "工程启发：别盲目堆参数，重视数据规模，按任务定模型大小（推理用大、分类用小）…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 22,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "微调有哪些方案？怎么选？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "微调",
+    "LoRA",
+    "QLoRA",
+    "DPO",
+    "RAG"
+   ],
+   "options": null,
+   "standard_answer": "微调是**最后手段**，Prompt/RAG 不行才考虑。两个正交维度：\n- **改哪些参数**：全量微调 / LoRA / QLoRA（4-bit 量化+LoRA）；\n- **学什么目标**：SFT（学指令格式）/ DPO（学偏好对齐）。\n- 实战：个人 QLoRA+SFT，中小企业 LoRA+SFT，偏好对齐加 LoRA+DPO。",
+   "answer_points": [
+    "微调是**最后手段**",
+    "Prompt/RAG 不行才考虑",
+    "两个正交维度：",
+    "**改哪些参数**：全量微调 / LoRA / QLoRA（4-bit 量化…",
+    "**学什么目标**：SFT（学指令格式）/ DPO（学偏好对齐）。"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 23,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "讲一下 LoRA 的原理和核心优势。",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "微调",
+    "LoRA",
+    "部署"
+   ],
+   "options": null,
+   "standard_answer": "- **原理**：冻结原权重 W，在关键线性层旁注入两个小矩阵 A（降维，秩 r）、B（升维），前向变成 `h = Wx + (BA)x`，**只训 A、B**。参数更新具有「内在低秩性」——如 4096×4096 矩阵（≈1600万参数）在 r=16 时只需 13万参数；\n- **优势**（不止省参数）：① 推理零开销（可合并回原权重）；② 模块化部署（一个基座+多套 LoRA 热切换）；③ 降低灾难性遗忘（原权重冻结）；④ 训练稳定；⑤ LoRA Merging 多套加权混合。",
+   "answer_points": [
+    "**原理**：冻结原权重 W，在关键线性层旁注入两个小矩阵 A（降维，秩 r…",
+    "**优势**（不止省参数）：① 推理零开销（可合并回原权重）；② 模块化部署…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 24,
+   "group_id": "g5",
+   "group_seq": 1,
+   "group_label": "LoRA 的原理和核心优势"
+  },
+  {
+   "question_text": "LoRA 的压缩比怎么算？秩 r 一般取多少？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "微调",
+    "LoRA"
+   ],
+   "options": null,
+   "standard_answer": "压缩比 = 原参数量 / LoRA 参数量 = `(d×k) / (d×r + r×k)`；r 常取 **4~64**（7B 常用 8~16）。注意：原笔记「微调 0.1%~1%」是指可训练参数占比，和具体 r 共同决定。",
+   "answer_points": [
+    "压缩比 = 原参数量 / LoRA 参数量 = `(d×k) / (d×r …",
+    "r 常取 **4~64**（7B 常用 8~16）",
+    "注意：原笔记「微调 0.1%~1%」是指可训练参数占比",
+    "和具体 r 共同决定"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 25,
+   "group_id": "g5",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "指令微调（Instruction Tuning）和提示学习（Prompt Learning）区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "微调",
+    "LoRA",
+    "Prompt"
+   ],
+   "options": null,
+   "standard_answer": "- **指令微调**：全量或高效微调（LoRA），**更新模型内部权重**，适配器接入各层改变输出行为；\n- **提示学习**：所有网络层**完全冻结**，只在输入端训一小段「软提示」向量 p，构造 `x'=[p,x]`，让原模型 F 输出目标。比喻：前者改整个函数，后者只精心配一把钥匙 p。",
+   "answer_points": [
+    "**指令微调**：全量或高效微调（LoRA），**更新模型内部权重**，适配…",
+    "**提示学习**：所有网络层**完全冻结**，只在输入端训一小段「软提示」向…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 26,
+   "group_id": "g6",
+   "group_seq": 1,
+   "group_label": "指令微调（Instructi"
+  },
+  {
+   "question_text": "全量微调的显存到底花在哪？怎么估算？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "微调",
+    "LoRA",
+    "QLoRA",
+    "梯度"
+   ],
+   "options": null,
+   "standard_answer": "以 0.8B（BF16 权重）为例，混合精度下优化器持有的 FP32 缓冲区共 **12 字节/参数** = FP32 主权重副本 4 + 一阶动量 m 4 + 二阶方差 v 4；相对 FP16 权重（2 字节/参数）约为其 **6 倍**——这才是显存大头（别只算 m、v 而漏掉 FP32 主权重副本）。\n- 全量微调：权重 1.6GB + 梯度 3.2GB + FP32 缓冲区 9.6GB ≈ **14.4GB**（≈9 倍权重）；\n- LoRA：基座冻结（无 FP32 副本），只训 LoRA 参数（其优化器状态含自身 FP32 副本），整体常可压到 **2~3GB** 甚至 QLoRA 10GB 以内。",
+   "answer_points": [
+    "以 0.8B（BF16 权重）为例",
+    "混合精度下优化器持有的 FP32 缓冲区共 **12 字节/参数** = F…",
+    "相对 FP16 权重（2 字节/参数）约为其 **6 倍**——这才是显存大…",
+    "全量微调：权重 1.6GB + 梯度 3.2GB + FP32 缓冲区 9.…",
+    "LoRA：基座冻结（无 FP32 副本），只训 LoRA 参数（其优化器状态…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 27,
+   "group_id": "g6",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "讲一下 RLHF 的整体流程。",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "DPO",
+    "PPO",
+    "GRPO"
+   ],
+   "options": null,
+   "standard_answer": "一句记：**先训裁判，再用裁判调模型**。\n1. **训奖励模型 RM**：拿预训练模型冻结、头上加打分头，用「人类对答案好坏」训它，学会给（问题+回答）打分；\n2. **用 RM 做强化学习（PPO）**：模型生成答案 → RM 打分 → PPO 拿分调模型，让高分答案以后更易被生成。\n- 记忆点：PPO 不是无脑追高分，而是优化「**奖励 − 和原模型偏离度(KL)**」。不加 KL 会**钻空子骗分(reward hacking)** + **忘记本事(灾难性遗忘)**；用 clip 卡更新幅度、用 critic 判断「比平时好多少」。\n- 📌 现状：纯 PPO 的 RLHF 流程重（单独训 RM+价值网络，显存贵、不稳），如今中小团队多用 **DPO/GRPO**；但思想仍是基础，大厂仍在其变体上投入。",
+   "answer_points": [
+    "一句记：**先训裁判",
+    "再用裁判调模型**",
+    "**训奖励模型 RM**：拿预训练模型冻结、头上加打分头，用「人类对答案好坏…",
+    "**用 RM 做强化学习（PPO）**：模型生成答案 → RM 打分 → P…",
+    "记忆点：PPO 不是无脑追高分，而是优化「**奖励 − 和原模型偏离度(KL…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 28,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "DPO 是什么？为什么它不需要奖励模型？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "LoRA",
+    "DPO",
+    "奖励模型"
+   ],
+   "options": null,
+   "standard_answer": "DPO 直接拿「好/坏答案」对比对来微调 LLM，**不需要单独训练 RM**。它复用 LLM 自身 log 概率：累加答案 token 的 log 概率得标量，损失\n`loss = -log(σ(β×(logP(chosen) − logP(rejected))))`，\n目标是让 chosen 概率 > rejected；β 控制差异敏感度。常配合 LoRA。\n- 误区澄清：DPO **不是无监督**（依赖偏好标签）、**不需要分类头**（直接复用 LLM logits）。",
+   "answer_points": [
+    "DPO 直接拿「好/坏答案」对比对来微调 LLM",
+    "**不需要单独训练 RM**",
+    "它复用 LLM 自身 log 概率：累加答案 token 的 log 概率得…",
+    "损失",
+    "`loss = -log(σ(β×(logP(chosen) − logP(…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 29,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "PPO 和 DPO 核心区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "DPO",
+    "PPO",
+    "奖励模型"
+   ],
+   "options": null,
+   "standard_answer": "（对比表）\n\n| 维度 | PPO | DPO |\n|---|---|---|\n| 是否需要奖励模型 | 需要（单独训） | 不需要 |\n| 同时维护模型数 | 4 个（策略/参考/ RM/ critic） | 2 个 |\n| 训练稳定性 | 较差（RL 本身不稳） | 好（等价于监督学习） |\n| 实现难度 | 高（需 RL 基建） | 低（标准训练框架即可） |\n| 表达能力 | 强（可探索数据外空间） | 稍弱（受偏好数据分布限制） |\n\n类比：PPO「先训裁判再训选手」，DPO「直接拿比赛录像告诉选手哪个对哪个错」。",
+   "answer_points": [
+    "（对比表）",
+    "| 维度 | PPO | DPO |",
+    "|---|---|---|",
+    "| 是否需要奖励模型 | 需要（单独训） | 不需要 |",
+    "| 同时维护模型数 | 4 个（策略/参考/ RM/ critic） | 2…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 30,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "PPO、GRPO、DPO 三者怎么选？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "DPO",
+    "PPO",
+    "GRPO"
+   ],
+   "options": null,
+   "standard_answer": "（对比表）\n\n| 方法 | 训练信号 | 额外模型 | 数据要求 | 范式 | 稳定性 |\n|---|---|---|---|---|---|\n| PPO | 外部奖励模型 | 需 RM + 价值网络(critic) | 低（只需提示词） | 在线 RL | 中 |\n| GRPO | 组内比较 + 奖励信号 | 不用价值网络，但仍需**奖励**（规则或 RM） | 低 | 在线 RL | 较高 |\n| DPO | 人工标注偏好对 | 否 | 高（需大量对比数据） | 离线监督 | 高 |\n\n- 选型：有 RM 资源+求效果上限 → PPO；想避开价值网络、可接受在线生成成本 → GRPO（DeepSeek 2024 提出，砍掉 critic，用**组内归一化**算优势，对数学/代码等可验证任务常连 RM 都不用，靠规则奖励）；有高质量对比数据、求稳定 → DPO。",
+   "answer_points": [
+    "（对比表）",
+    "| 方法 | 训练信号 | 额外模型 | 数据要求 | 范式 | 稳定性 |",
+    "|---|---|---|---|---|---|",
+    "| PPO | 外部奖励模型 | 需 RM + 价值网络(critic) |…",
+    "| GRPO | 组内比较 + 奖励信号 | 不用价值网络"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 31,
+   "group_id": "g7",
+   "group_seq": 1,
+   "group_label": "PPO、GRPO、DPO 三"
+  },
+  {
+   "question_text": "GRPO 的标准化得分怎么算？它真的不需要任何额外模型吗？",
+   "question_type": "short_answer",
+   "difficulty": "medium",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "GRPO",
+    "奖励模型",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "对同一提示采样 N 个回答并评分 → 组内标准化 `得分 = (原始分 − 组均值) / 组标准差` → `loss = -标准化得分 × log_prob(回答)`，组内高分被鼓励。\n- ⚠️ 精确说法：GRPO **砍掉的是价值网络(critic)**，但**仍然需要奖励信号**——可以是规则奖励（如答案对错），也可以是奖励模型。所以「GRPO 额外模型=否」只在「不用价值网络」意义上成立，并非完全无奖励来源。这是面试常踩的坑。",
+   "answer_points": [
+    "对同一提示采样 N 个回答并评分 → 组内标准化 `得分 = (原始分 − …",
+    "组内高分被鼓励",
+    "⚠️ 精确说法：GRPO **砍掉的是价值网络(critic)**，但**仍…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 32,
+   "group_id": "g7",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "SFT 之后还有哪些 Post-Training 方法？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "对齐",
+    "RLHF",
+    "DPO",
+    "PPO",
+    "GRPO"
+   ],
+   "options": null,
+   "standard_answer": "解决「安全/偏好」问题，五大主流：\n- **RLHF**：最经典，RM→PPO，4 模型，上限高但复杂；\n- **DPO**：绕过 RM，2 模型，稳定简单；\n- **GRPO**：PPO 进化版，砍 critic，组内归一化；\n- **拒绝采样**：生成多答案→筛高分→再做 SFT，无需 RL；\n- **RLAIF**：用强 AI 替代人类标注降成本。\n- 工业组合：Llama2-Chat = SFT→拒绝采样→PPO；DeepSeek-R1 = SFT冷启动→多轮GRPO→拒绝采样→二轮SFT→二轮GRPO。",
+   "answer_points": [
+    "解决「安全/偏好」问题",
+    "五大主流：",
+    "**RLHF**：最经典，RM→PPO，4 模型，上限高但复杂；",
+    "**DPO**：绕过 RM，2 模型，稳定简单；",
+    "**GRPO**：PPO 进化版，砍 critic，组内归一化；"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 33,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 RAG？完整工作流程是什么？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Rerank",
+    "Embedding",
+    "向量数据库"
+   ],
+   "options": null,
+   "standard_answer": "RAG（检索增强生成）在生成前先从外部知识库检索相关内容，拼进 prompt 再让 LLM 生成，解决「知识冻结、私有数据覆盖、幻觉」三类问题。\n- **离线建库**：文档加载 → 切割 Chunk → Embedding 向量化 → 存入向量库；\n- **在线查询**：Query 处理(改写) → 向量检索(粗排) → Rerank(精排) → 拼 Prompt → LLM 生成（带引用）。",
+   "answer_points": [
+    "RAG（检索增强生成）在生成前先从外部知识库检索相关内容",
+    "拼进 prompt 再让 LLM 生成",
+    "解决「知识冻结、私有数据覆盖、幻觉」三类问题",
+    "**离线建库**：文档加载 → 切割 Chunk → Embedding 向…",
+    "**在线查询**：Query 处理(改写) → 向量检索(粗排) → Rer…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 34,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "RAG 和微调怎么选？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Prompt",
+    "微调"
+   ],
+   "options": null,
+   "standard_answer": "（对比表）\n\n| 维度 | 微调 | RAG |\n|---|---|---|\n| 知识更新 | 需重训 | 更新知识库即可 |\n| 推理延迟 | 低 | 较高（多一次检索） |\n| 答案可溯源 | 不支持 | 支持 |\n| 适合场景 | 改输出风格/深度能力 | 私有知识问答 |\n\n组合口诀：**微调教「怎么说」，RAG 告诉「说什么」**。优先 Prompt/RAG，都不行再微调。",
+   "answer_points": [
+    "（对比表）",
+    "| 维度 | 微调 | RAG |",
+    "|---|---|---|",
+    "| 知识更新 | 需重训 | 更新知识库即可 |",
+    "| 推理延迟 | 低 | 较高（多一次检索） |"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 35,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "文档切割（Chunking）有哪些策略？为什么要 overlap？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "（五种）\n- 固定大小+重叠（简单，但可能截断语义）；\n- 语义边界切割（段落分明，语义完整）；\n- 标题层级切割（Markdown/HTML，依赖结构）；\n- 代码按函数切割（保逻辑）；\n- 父子切割（检索精准+上下文完整，存储翻倍）。\n- **overlap（重叠 10~20%）**：防止关键信息被切断在块边界，保证检索到的块语义完整。通常 **500~1000 token** 是合理起点。前沿有 **Late Chunking**（先编码后切分，融入全文语境）。",
+   "answer_points": [
+    "（五种）",
+    "固定大小+重叠（简单，但可能截断语义）；",
+    "语义边界切割（段落分明，语义完整）；",
+    "标题层级切割（Markdown/HTML，依赖结构）；",
+    "代码按函数切割（保逻辑）；"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 36,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么避免「语义被切割掉」？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Embedding",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "两方向：① 切时避免截断（重叠+语义边界）；② 切后补全上下文（句子窗口检索、父子切割、**Contextual Retrieval**——向量化前让 LLM 给每块生成背景说明拼接，Anthropic 实测降约 49% 检索失败率）。共六种：重叠→语义边界→句子窗口→父子→命题化→Contextual Retrieval。",
+   "answer_points": [
+    "两方向：① 切时避免截断（重叠+语义边界）",
+    "② 切后补全上下文（句子窗口检索、父子切割、**Contextual Ret…",
+    "Anthropic 实测降约 49% 检索失败率）",
+    "共六种：重叠→语义边界→句子窗口→父子→命题化→Contextual Ret…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 37,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Embedding 怎么选、怎么评估？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Embedding"
+   ],
+   "options": null,
+   "standard_answer": "- 选型：中文为主用 `bge-large-zh-v1.5` / `Qwen3-Embedding`；中英混合用 `bge-m3`；纯英文省事用 `text-embedding-3-small`；\n- 评估：**必须在自己业务数据上跑召回（Hit@K）**，别只看 MTEB 通用榜；\n- 算法三代：静态词向量(Word2Vec) → 上下文相关(ELMo/BERT，慢) → 句子级对比学习(SBERT/BGE/E5，bi-encoder 独立编码，RAG 标配)。",
+   "answer_points": [
+    "选型：中文为主用 `bge-large-zh-v1.5` / `Qwen3-…",
+    "评估：**必须在自己业务数据上跑召回（Hit@K）**，别只看 MTEB 通…",
+    "算法三代：静态词向量(Word2Vec) → 上下文相关(ELMo/BERT…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 38,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "向量数据库怎么选？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "向量数据库"
+   ],
+   "options": null,
+   "standard_answer": "核心是近似最近邻(ANN)搜索。索引：HNSW（多层图，召回 95%+，内存大）、IVF（聚类分桶，内存小精度略低）。\n- 选型：原型→Chroma；中小大规模生产→Qdrant；超大规模→Milvus；全托管→Pinecone；不想加组件→pgvector。",
+   "answer_points": [
+    "核心是近似最近邻(ANN)搜索",
+    "索引：HNSW（多层图",
+    "召回 95%+",
+    "内存大）、IVF（聚类分桶",
+    "内存小精度略低）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 39,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "在线流程里「向量检索」和「关键词检索(BM25)」区别？为什么要混合？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "向量数据库"
+   ],
+   "options": null,
+   "standard_answer": "BM25 基于词频，擅长精确命中专有名词/型号；向量检索基于语义距离，擅长同义/模糊匹配。两者互补，工业界用**混合检索**（向量+BM25 双路）+ **RRF 融合**（不看原始分看排名，越靠前综合分越高）。",
+   "answer_points": [
+    "BM25 基于词频",
+    "擅长精确命中专有名词/型号",
+    "向量检索基于语义距离",
+    "擅长同义/模糊匹配",
+    "两者互补"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 40,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 Query Rewrite（查询重写）？",
+   "question_type": "concept",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "向量数据库"
+   ],
+   "options": null,
+   "standard_answer": "弥补「用户提问」与「知识库文档」的语义鸿沟。方法：直接改写（口语转书面）、HyDE（先生成假设答案再用答案向量检索）、Step-back（抽象一层）、多 Query 扩展（一个问题拆 3~5 个角度）。",
+   "answer_points": [
+    "弥补「用户提问」与「知识库文档」的语义鸿沟",
+    "方法：直接改写（口语转书面）、HyDE（先生成假设答案再用答案向量检索）、S…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 41,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "RAG 上线效果差，怎么系统排查？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Rerank",
+    "Embedding",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "严格按顺序 1→2→3→4，绝大多数问题可定位：\n1. **查输入**：查询模糊/口语化 → 查询重写、多轮引导；\n2. **查分块**：返回碎片化 → 调块大小、加重叠、语义切分；\n3. **查相关性**：返回完全不相关 → 检查/更换 Embedding（算示例相似度验证）；\n4. **查排序**：最相关没排最前 → 调混合检索权重或引入 Reranker。\n心法：顺序排查 + 数据驱动（从失败日志挖 bad case）+ 小范围快速验证。",
+   "answer_points": [
+    "严格按顺序 1→2→3→4",
+    "绝大多数问题可定位：",
+    "**查输入**：查询模糊/口语化 → 查询重写、多轮引导；",
+    "**查分块**：返回碎片化 → 调块大小、加重叠、语义切分；",
+    "**查相关性**：返回完全不相关 → 检查/更换 Embedding（算示例…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 42,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么系统性优化 RAG 检索相关性？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Rerank"
+   ],
+   "options": null,
+   "standard_answer": "四层体系：① **索引层**（Parent-Child、摘要索引、多粒度）；② **查询层**（Query 改写、Multi-Query、HyDE、Step-back）；③ **召回层**（向量+BM25 多路 + RRF）；④ **重排序层**（Cross-Encoder 精排）。生产推荐：Parent-Child 索引 + 向量/BM25 多路 + Rerank。评估闭环算 Recall@K/MRR 驱动迭代。",
+   "answer_points": [
+    "四层体系：① **索引层**（Parent-Child、摘要索引、多粒度）",
+    "② **查询层**（Query 改写、Multi-Query、HyDE、St…",
+    "③ **召回层**（向量+BM25 多路 + RRF）",
+    "④ **重排序层**（Cross-Encoder 精排）",
+    "生产推荐：Parent-Child 索引 + 向量/BM25 多路 + Re…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 43,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "检索后为什么还要 Rerank？Bi-Encoder 和 Cross-Encoder 区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Rerank",
+    "向量数据库",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "向量检索是「双塔独立编码」的粗筛，快但有表示偏差、易漏细粒度匹配；Rerank 用 Cross-Encoder 把查询和文档**联合编码交互**，打分更准但慢，只用于 Top-K 精排。两阶段「快粗筛 + 准精排」兼顾效率与精度。",
+   "answer_points": [
+    "向量检索是「双塔独立编码」的粗筛",
+    "快但有表示偏差、易漏细粒度匹配",
+    "Rerank 用 Cross-Encoder 把查询和文档**联合编码交互*…",
+    "打分更准但慢",
+    "只用于 Top-K 精排"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 44,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么提升 RAG 的泛化/召回能力，让同段内容多角度被找到？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "三层：① 基础改造（语义切分 + 相邻块 10% 重叠 + 打 `[文档]-[章节]-[第几块]` 标签）；② 内容包装（给每块生成「一句话摘要 + 3 个预测问题 + 关键实体」分别建索引，原文/摘要/预测问题三入口并行）；③ 建立联系（显式链接 + 隐式链接向量相似找同主题块，检索到一个块自动带相关块形成完整上下文）。",
+   "answer_points": [
+    "三层：① 基础改造（语义切分 + 相邻块 10% 重叠 + 打 `[文档]-…",
+    "② 内容包装（给每块生成「一句话摘要 + 3 个预测问题 + 关键实体」分别…",
+    "原文/摘要/预测问题三入口并行）",
+    "③ 建立联系（显式链接 + 隐式链接向量相似找同主题块",
+    "检索到一个块自动带相关块形成完整上下文）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 45,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "有哪些更复杂的 RAG 范式？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强",
+    "Agent"
+   ],
+   "options": null,
+   "standard_answer": "Self-RAG（LLM 自主决策是否检索）、CRAG（检索差时降级联网）、GraphRAG（知识图谱+社区发现+层次摘要，适合实体关系复杂）、Agentic RAG（多轮动态检索）。何时用图数据库：问题涉及「多个实体之间有什么关系」、需沿关系链推理时（向量只能单跳）。",
+   "answer_points": [
+    "Self-RAG（LLM 自主决策是否检索）、CRAG（检索差时降级联网）、…",
+    "适合实体关系复杂）、Agentic RAG（多轮动态检索）",
+    "何时用图数据库：问题涉及「多个实体之间有什么关系」、需沿关系链推理时（向量只…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 46,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么量化 RAG 效果？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "RAG",
+    "检索增强"
+   ],
+   "options": null,
+   "standard_answer": "两层：① 检索层 Hit@K（是否召回到）、MRR（正确 chunk 排名是否靠前）；② 生成层（RAGAs）：Faithfulness（忠实度）、Answer Relevancy、Context Recall。指标定位：Context Recall 低→检索问题；Faithfulness 低→LLM 编造；Answer Relevancy 低→答案跑题。线上看：点踩率、追问率、转人工率、解决率。",
+   "answer_points": [
+    "两层：① 检索层 Hit@K（是否召回到）、MRR（正确 chunk 排名是…",
+    "② 生成层（RAGAs）：Faithfulness（忠实度）、Answer …",
+    "指标定位：Context Recall 低→检索问题",
+    "Faithfulness 低→LLM 编造",
+    "Answer Relevancy 低→答案跑题"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 47,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "知识库怎么动态更新？落地最难在哪？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "RAG",
+    "检索增强"
+   ],
+   "options": null,
+   "standard_answer": "更新：给文档算 Hash 感知变更，「先删后增」（清旧向量→重切→重入库），事件驱动 + Hash 检测最优，局部更新永不做。三大难点：① 文档预处理（PDF 解析乱序/双栏/OCR）；② 检索质量调优（效果天花板）；③ 效果评估困难（用两层评估法）。",
+   "answer_points": [
+    "更新：给文档算 Hash 感知变更",
+    "「先删后增」（清旧向量→重切→重入库）",
+    "事件驱动 + Hash 检测最优",
+    "局部更新永不做",
+    "三大难点：① 文档预处理（PDF 解析乱序/双栏/OCR）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 48,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是生成式排序（Generative Ranking）？训练数据怎么造？",
+   "question_type": "concept",
+   "difficulty": "hard",
+   "tags": [
+    "生成式排序",
+    "检索"
+   ],
+   "options": null,
+   "standard_answer": "把「查询 Q + 整个候选列表 [D1..Dn]」一起丢给 LLM，指令它理解、比较并**直接输出一个排序**（生成式任务）。训练数据：① 人工标注；② 客户反馈——收集「问题+多个检索结果及得分」，打乱顺序拼成「输入：问题+打乱结果 / 输出：按相似度重排结果」的样本。正负样本不均时：正样本增强（同义替换/句式转换）+ 样本权重（类似 Focal Loss 思想动态加权）。",
+   "answer_points": [
+    "把「查询 Q + 整个候选列表 [D1..Dn]」一起丢给 LLM",
+    "指令它理解、比较并**直接输出一个排序**（生成式任务）",
+    "训练数据：① 人工标注",
+    "② 客户反馈——收集「问题+多个检索结果及得分」",
+    "打乱顺序拼成「输入：问题+打乱结果 / 输出：按相似度重排结果」的样本"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 49,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "生成式搜索怎么提升 Top-1 准确率？流程怎么设计？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "生成式排序",
+    "检索",
+    "Rerank",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "提升 Top-1：① 夯实召回与排序（混合检索+Reranker 把最相关片段推到前 1~3）；② 路由与限范围（问题分类到特定子集、元数据过滤提信噪比）；③ 多轮交互（主动澄清模糊意图、渐进给带引用的保守摘要）。流程：提问 → 意图路由 → 混合检索+Reranker 得 Top-K → 生成模型基于指令和 Top-K 生成带引用答案 → 高置信直接返回 / 低置信多轮澄清。",
+   "answer_points": [
+    "提升 Top-1：① 夯实召回与排序（混合检索+Reranker 把最相关片…",
+    "② 路由与限范围（问题分类到特定子集、元数据过滤提信噪比）",
+    "③ 多轮交互（主动澄清模糊意图、渐进给带引用的保守摘要）",
+    "流程：提问 → 意图路由 → 混合检索+Reranker 得 Top-K →…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 50,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "大模型为什么会产生幻觉？怎么系统性治理？",
+   "question_type": "essay",
+   "difficulty": "medium",
+   "tags": [
+    "幻觉",
+    "幻觉治理",
+    "工具调用",
+    "RAG",
+    "解码策略"
+   ],
+   "options": null,
+   "standard_answer": "根因（三层）：① 训练数据含错误/矛盾；② **生成机制**（最关键）：模型是「续写」而非「查询」，概率最高 ≠ 事实正确，**Temperature=0 也会幻觉**；③ 对齐副作用：标注员偏好「自信详细」，「我不知道」得分低。\n治理（系统层为主）：① 指令约束（设边界、要求逐步推理、标引用、信息不足明说不知道）；② 工具调用（数学/查询/代码交给 function calling，杜绝此类幻觉）；③ 知识增强（RAG/知识图谱把参考插入 prompt）；④ 生成与验证（多路径投票 + 强制内联溯源）。RAG 是**最有效**手段；工程目标不是「消除」而是「降低发生率 + 让用户可识别」。",
+   "answer_points": [
+    "根因（三层）：① 训练数据含错误/矛盾",
+    "② **生成机制**（最关键）：模型是「续写」而非「查询」",
+    "概率最高 ≠ 事实正确",
+    "**Temperature=0 也会幻觉**",
+    "③ 对齐副作用：标注员偏好「自信详细」"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 51,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "大模型的解码/采样策略有哪些？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "解码策略",
+    "采样",
+    "KV Cache"
+   ],
+   "options": null,
+   "standard_answer": "（权衡「确定性 vs 多样性」）\n\n| 策略 | 类型 | 适用 |\n|---|---|---|\n| 贪心解码 | 确定性 | 代码/SQL/JSON（T=0） |\n| Beam Search | 确定性 | 机器翻译（LLM 时代已失宠） |\n| Temperature | 随机 | 通用 |\n| Top-K | 随机 | 对话/创意 |\n| Top-P（核采样） | 随机 | **当前 API 最主流** |\n\n- Beam Search 失宠：开放任务无单一最优，追整体概率最高反而无聊重复，且与 KV Cache 不兼容。\n- 参数：Temperature 控分布平滑度；Top-K 固定数量截断；Top-P 自适应累积概率截断。**一次主要只调一个（通常 temperature）**。精确任务 T=0~0.2，日常 T=0.5~0.7/P=0.9，创意 T=0.8~1.2/P=0.95。",
+   "answer_points": [
+    "（权衡「确定性 vs 多样性」）",
+    "| 策略 | 类型 | 适用 |",
+    "|---|---|---|",
+    "| 贪心解码 | 确定性 | 代码/SQL/JSON（T=0） |",
+    "| Beam Search | 确定性 | 机器翻译（LLM 时代已失宠） …"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 52,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "KV Cache 是什么？为什么推理离不开它？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "KV Cache",
+    "推理优化",
+    "Prompt"
+   ],
+   "options": null,
+   "standard_answer": "自回归生成时重复算 Attention 是 O(N³)。KV Cache **缓存已生成 token 的 K/V**，新 token 只算自己的 Q 与缓存 K 做 Attention，计算从 O(N³) 降到 O(N²)。代价：显存大——7B 模型 32K 上下文 KV Cache 可达约 **17GB**。\n**Prompt Caching** 把缓存跨请求复用：共享前缀（如 System Prompt）只算一次，命中费用可降至 10%（Claude 用 `cache_control`，OpenAI 自动缓存 >1024 token 前缀）。工程铁律：**固定内容在前，动态内容在后**，否则前缀哈希变、缓存永远失效。",
+   "answer_points": [
+    "自回归生成时重复算 Attention 是 O(N³)",
+    "KV Cache **缓存已生成 token 的 K/V**",
+    "新 token 只算自己的 Q 与缓存 K 做 Attention",
+    "计算从 O(N³) 降到 O(N²)",
+    "代价：显存大——7B 模型 32K 上下文 KV Cache 可达约 **1…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 53,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "大模型量化是什么？INT8/INT4/AWQ/GPTQ 怎么选？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "量化",
+    "模型压缩",
+    "LoRA",
+    "QLoRA",
+    "微调"
+   ],
+   "options": null,
+   "standard_answer": "把高精度浮点（FP16）转低精度整数（INT8/INT4），精度损失可控下大幅降显存提速。7B FP16→INT4：14GB→3.5GB，推理快 2~4 倍。\n- 精度边界：INT8 损失 <0.5%（近乎免费）；INT4 甜蜜点（损失 1~3%）；INT3 以下危险区；\n- 算法：GPTQ（误差补偿、逐层量化，精度高、慢，适合离线）；AWQ（激活感知、保护 1% 显著权重，速度精度平衡，适合生产）；NF4/QLoRA（非均匀量化+微调，消费级 GPU 可训大模型）；\n- 选型：生产重速度→AWQ；求最高精度→GPTQ INT4；个人微调→QLoRA+NF4；边缘→llama.cpp+GGUF。",
+   "answer_points": [
+    "把高精度浮点（FP16）转低精度整数（INT8/INT4）",
+    "精度损失可控下大幅降显存提速",
+    "7B FP16→INT4：14GB→3.5GB",
+    "推理快 2~4 倍",
+    "精度边界：INT8 损失 <0.5%（近乎免费）；INT4 甜蜜点（损失 1…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 54,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么写好 Prompt？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Prompt",
+    "CoT",
+    "RAG"
+   ],
+   "options": null,
+   "standard_answer": "核心是「不模糊」，做好五件事：**角色(Role)、任务(Task)、上下文(Context)、格式(Format)、示例(Examples)**。进阶：CoT 触发（「请先分步分析」）、XML 标签包裹分区。工程化：建 30~50 条测试集→每次改跑回归→单变量修改。长上下文 RAG 可加 Prompt 压缩（LLMLingua 删低价值 token）。",
+   "answer_points": [
+    "核心是「不模糊」",
+    "做好五件事：**角色(Role)、任务(Task)、上下文(Context)…",
+    "进阶：CoT 触发（「请先分步分析」）、XML 标签包裹分区",
+    "工程化：建 30~50 条测试集→每次改跑回归→单变量修改",
+    "长上下文 RAG 可加 Prompt 压缩（LLMLingua 删低价值 t…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 55,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 CoT？优缺点？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "Prompt",
+    "CoT",
+    "解码策略",
+    "训练流程"
+   ],
+   "options": null,
+   "standard_answer": "Chain-of-Thought：让模型先生成逐步推理再给结论，本质是「推出来」而非「直接猜」。\n- 为什么有效：暴露中间错误、当草稿纸、激活预训练推理模式；\n- 局限：token 消耗大、简单问题适得其反、推理链错误会累积、纯记忆任务无效；\n- 升级 Self-Consistency：多次采样多数投票，再提 5~15%。",
+   "answer_points": [
+    "Chain-of-Thought：让模型先生成逐步推理再给结论",
+    "本质是「推出来」而非「直接猜」",
+    "为什么有效：暴露中间错误、当草稿纸、激活预训练推理模式；",
+    "局限：token 消耗大、简单问题适得其反、推理链错误会累积、纯记忆任务无效…",
+    "升级 Self-Consistency：多次采样多数投票，再提 5~15%。"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 56,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "讲讲 MoE 的核心思想和挑战。",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "MoE",
+    "混合专家",
+    "部署"
+   ],
+   "options": null,
+   "standard_answer": "总参数大、激活参数小，解耦「知识量」与「推理成本」。三大组件：多个专家(Experts)、路由器(Router)、负载均衡损失。\n- 代表：DeepSeek-V3 总参数 **671B**、激活 **37B**（仅 5.5%），知识量接近 671B、推理成本接近 37B；\n- 挑战：训练难（专家不平衡、All-to-All 通信大）、部署难（显存按总参数加载）。",
+   "answer_points": [
+    "总参数大、激活参数小",
+    "解耦「知识量」与「推理成本」",
+    "三大组件：多个专家(Experts)、路由器(Router)、负载均衡损失",
+    "代表：DeepSeek-V3 总参数 **671B**、激活 **37B**…",
+    "挑战：训练难（专家不平衡、All-to-All 通信大）、部署难（显存按总参…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 57,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "大模型部署有哪些主流框架？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "部署",
+    "评测",
+    "KV Cache",
+    "Agent"
+   ],
+   "options": null,
+   "standard_answer": "不能直接用 transformers 上生产（显存碎片、批量调度低效）。四大：\n- **vLLM**：PagedAttention 消碎片 + Continuous Batching，高吞吐 API 事实标准；\n- **SGLang**：RadixAttention 共享前缀 KV Cache，适合 Agent/多轮；\n- **TGI**：HF 生态集成；\n- **llama.cpp**：C++ 重写 + GGUF，CPU/Mac/边缘。\n互补而非替代：纯单请求 vLLM 够；共享前缀 SGLang 省 50~80% KV 显存。",
+   "answer_points": [
+    "不能直接用 transformers 上生产（显存碎片、批量调度低效）",
+    "四大：",
+    "**vLLM**：PagedAttention 消碎片 + Continuo…",
+    "**SGLang**：RadixAttention 共享前缀 KV Cach…",
+    "**TGI**：HF 生态集成；"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 58,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "怎么评测大模型能力？模型怎么选型？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "部署",
+    "评测"
+   ],
+   "options": null,
+   "standard_answer": "Benchmark 只能参考（有数据污染）：综合 MMLU/MMLU-Pro；代码 HumanEval/SWE-bench；数学 GSM8K/MATH/GPQA；对话 MT-Bench/Chatbot Arena。工程落地要建业务「黄金测试集」（50~200 条真实请求，客观题自动验、主观题 LLM-as-Judge+人工抽查）。选型四维：**合规、成本、延迟、能力**匹配，常用模型路由（Model Routing）按任务混调，不死磕单模型。",
+   "answer_points": [
+    "Benchmark 只能参考（有数据污染）：综合 MMLU/MMLU-Pro",
+    "代码 HumanEval/SWE-bench",
+    "数学 GSM8K/MATH/GPQA",
+    "对话 MT-Bench/Chatbot Arena",
+    "工程落地要建业务「黄金测试集」（50~200 条真实请求"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 59,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 Agent？和大模型本质区别？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "Agent",
+    "智能体",
+    "工具调用"
+   ],
+   "options": null,
+   "standard_answer": "Agent 是能**自主完成目标**的 AI 系统，核心在「自主性 + 能行动」。闭环：**感知 → 规划 → 行动 → 再感知**。\n- 大模型局限：知识冻结、不能行动（只生成文本）、无持续状态；\n- Agent 突破：工具调用（决策/执行分离）、记忆（短期+长期）、多步推理与自我纠错。\n- 加分项：MCP（工具 USB-C 接口）、A2A（Agent 间协作）。答题必点三件事：**自主规划、能行动、有闭环**。",
+   "answer_points": [
+    "Agent 是能**自主完成目标**的 AI 系统",
+    "核心在「自主性 + 能行动」",
+    "闭环：**感知 → 规划 → 行动 → 再感知**",
+    "大模型局限：知识冻结、不能行动（只生成文本）、无持续状态；",
+    "Agent 突破：工具调用（决策/执行分离）、记忆（短期+长期）、多步推理与…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 60,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Agent 的基本架构有哪些核心组件？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "Agent",
+    "智能体"
+   ],
+   "options": null,
+   "standard_answer": "四个：LLM（大脑）、工具（交互外部）、记忆（保持状态）、规划模块（拆目标）。类比：LLM=老板，工具=外包，记忆=档案室，规划=项目经理。",
+   "answer_points": [
+    "四个：LLM（大脑）、工具（交互外部）、记忆（保持状态）、规划模块（拆目标）",
+    "类比：LLM=老板",
+    "工具=外包",
+    "记忆=档案室",
+    "规划=项目经理"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 61,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Workflow、Agent、Tools 三者区别？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "Agent",
+    "智能体"
+   ],
+   "options": null,
+   "standard_answer": "粒度从小到大：Tools（最小能力单元，只执行无决策）→ Agent（LLM 大脑做决策）→ Workflow（上层编排，把 Agent/Tools 组织成确定流程）。最佳实践 **Agentic Workflow**：固定主流程用 Workflow，灵活判断节点嵌 Agent。",
+   "answer_points": [
+    "粒度从小到大：Tools（最小能力单元",
+    "只执行无决策）→ Agent（LLM 大脑做决策）→ Workflow（上层…",
+    "把 Agent/Tools 组织成确定流程）",
+    "最佳实践 **Agentic Workflow**：固定主流程用 Workf…",
+    "灵活判断节点嵌 Agent"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 62,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Agent 的推理/设计范式有哪些？ReAct 是什么？",
+   "question_type": "essay",
+   "difficulty": "easy",
+   "tags": [
+    "Agent",
+    "智能体",
+    "CoT"
+   ],
+   "options": null,
+   "standard_answer": "递进：直接输出 → CoT → ReAct（推理+行动交替，Thought→Action→Observation 循环）。三种范式：① ReAct（边想边干，灵活最高）；② Plan-and-Execute（先定完整计划再执行，解决 ReAct 漂移，规划用大模型、执行用小模型可降本 70~90%）；③ Reflection（质量增强 Buff，非独立流程）。Anthropic 原则：「能用 Workflow 解决的就别用 Agent」。",
+   "answer_points": [
+    "递进：直接输出 → CoT → ReAct（推理+行动交替",
+    "Thought→Action→Observation 循环）",
+    "三种范式：① ReAct（边想边干",
+    "灵活最高）",
+    "② Plan-and-Execute（先定完整计划再执行"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 63,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "复杂任务怎么拆？记忆机制怎么设计？",
+   "question_type": "essay",
+   "difficulty": "hard",
+   "tags": [
+    "Agent",
+    "智能体",
+    "Embedding"
+   ],
+   "options": null,
+   "standard_answer": "拆分：静态写死 vs 动态 Plan-and-Execute；优化靠依赖分析并行（降延迟 40~60%）+ 原子粒度 + Replan。记忆四层：感知→短期(Context Window)→长期(向量库/语义检索)→实体(结构化事实)。长期记忆子类：情节/语义/程序记忆。避坑：**长期记忆是 Embedding+向量库语义检索，不是 LIKE 模糊搜索**。",
+   "answer_points": [
+    "拆分：静态写死 vs 动态 Plan-and-Execute",
+    "优化靠依赖分析并行（降延迟 40~60%）+ 原子粒度 + Replan",
+    "记忆四层：感知→短期(Context Window)→长期(向量库/语义检索…",
+    "长期记忆子类：情节/语义/程序记忆",
+    "避坑：**长期记忆是 Embedding+向量库语义检索"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 64,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "单 Agent 和 多 Agent 怎么选？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Agent",
+    "智能体"
+   ],
+   "options": null,
+   "standard_answer": "单 Agent 适合流程清晰、复杂度适中；多 Agent 适合专业分工/量大/需并行。架构几乎都选**中心化(Orchestrator)**。升级三信号：上下文超载、专业能力不足、并行需求。渐进策略：先单 Agent 跑通，遇瓶颈再拆 Worker。",
+   "answer_points": [
+    "单 Agent 适合流程清晰、复杂度适中",
+    "多 Agent 适合专业分工/量大/需并行",
+    "架构几乎都选**中心化(Orchestrator)**",
+    "升级三信号：上下文超载、专业能力不足、并行需求",
+    "渐进策略：先单 Agent 跑通"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 65,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Agent 的反思机制、记忆压缩？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Agent",
+    "智能体",
+    "KV Cache",
+    "Prompt"
+   ],
+   "options": null,
+   "standard_answer": "反思：生成→评估→改进闭环，评估 Prompt 必须有「PASS」出口，硬设最大轮次(2~3)防死循环；多 Agent 互评比自我反思好（避免自洽偏见）。记忆压缩四法：滑动窗口、摘要压缩、重要性过滤、结构化抽取；最常见「滑动窗口+摘要」。Prompt Caching 与压缩互补，费用可降至 1/10。",
+   "answer_points": [
+    "反思：生成→评估→改进闭环",
+    "评估 Prompt 必须有「PASS」出口",
+    "硬设最大轮次(2~3)防死循环",
+    "多 Agent 互评比自我反思好（避免自洽偏见）",
+    "记忆压缩四法：滑动窗口、摘要压缩、重要性过滤、结构化抽取"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 66,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "为什么有时「手搓」Agent 而不是用框架？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "Agent",
+    "智能体"
+   ],
+   "options": null,
+   "standard_answer": "框架痛点：抽象层多调试难、版本 breaking change、通用设计与业务不匹配。手搓优势：完全掌控、精确裁剪、稳定可控。折中：核心循环手写，周边工具借框架。金句：**框架不是问题，「不理解就依赖」才是**。",
+   "answer_points": [
+    "框架痛点：抽象层多调试难、版本 breaking change、通用设计与业…",
+    "手搓优势：完全掌控、精确裁剪、稳定可控",
+    "折中：核心循环手写",
+    "周边工具借框架",
+    "金句：**框架不是问题"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 67,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 Function Calling？原理？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "RLHF",
+    "微调"
+   ],
+   "options": null,
+   "standard_answer": "标准化「模型决策、代码执行」机制。关键：JSON Schema 定义工具 → 模型输出 `tool_calls` JSON（非自然语言）→ 两轮闭环（模型返回调用→代码执行→模型生成最终答案）→ 支持并行调用。训练靠 SFT（教「会不会」调）+ RLHF（教「该不该」调）。",
+   "answer_points": [
+    "标准化「模型决策、代码执行」机制",
+    "关键：JSON Schema 定义工具 → 模型输出 `tool_calls…",
+    "训练靠 SFT（教「会不会」调）+ RLHF（教「该不该」调）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 68,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 MCP？和 Function Calling 什么关系？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "Agent",
+    "Prompt"
+   ],
+   "options": null,
+   "standard_answer": "MCP 是工具接入的开放协议，像「USB-C 接口」统一工具标准。架构 Client-Server，三类能力：Tools（有副作用操作）、Resources（只读数据）、Prompts（模板）。底层 JSON-RPC 2.0，传输 Stdio（本地）/ Streamable HTTP（远程）。\n- **关系**：非替代，是不同抽象层配合——MCP 底层仍靠 Function Calling 驱动（Client 把工具定义转成模型原生 FC 格式，模型无感知 MCP 存在）。\n- 选型：只用一次/不复用 → Function Calling；跨项目复用/工具规模大/Agent 系统 → MCP。",
+   "answer_points": [
+    "MCP 是工具接入的开放协议",
+    "像「USB-C 接口」统一工具标准",
+    "架构 Client-Server",
+    "三类能力：Tools（有副作用操作）、Resources（只读数据）、Pro…",
+    "底层 JSON-RPC 2.0"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 69,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 A2A？和 MCP 区别？",
+   "question_type": "concept",
+   "difficulty": "hard",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "Agent"
+   ],
+   "options": null,
+   "standard_answer": "A2A（Google）解决**多个 Agent 互相发现/通信/协作**。对比：MCP 向下（Agent→工具），A2A 横向（Agent↔Agent）。机制：Agent Card（名片自动发现）+ Task（异步长任务状态机）。两者互补。",
+   "answer_points": [
+    "A2A（Google）解决**多个 Agent 互相发现/通信/协作**",
+    "对比：MCP 向下（Agent→工具）",
+    "A2A 横向（Agent↔Agent）",
+    "机制：Agent Card（名片自动发现）+ Task（异步长任务状态机）",
+    "两者互补"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 70,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "为什么有些推理模型不支持 MCP/工具调用？",
+   "question_type": "short_answer",
+   "difficulty": "hard",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "KV Cache",
+    "CoT"
+   ],
+   "options": null,
+   "standard_answer": "生成范式冲突：推理模型连续思维链 vs 工具调用多轮中断。冲突点：① KV Cache 占用显存、暂停等工具吞吐量腰斩；② 中途插外部结果破坏推理脉络；③ 训练目标冲突（RL 鼓励深想 vs 学会打断）。折中：先跑完思维链，输出最终答案时才触发工具（o3/Claude 交错思考）。",
+   "answer_points": [
+    "生成范式冲突：推理模型连续思维链 vs 工具调用多轮中断",
+    "冲突点：① KV Cache 占用显存、暂停等工具吞吐量腰斩",
+    "② 中途插外部结果破坏推理脉络",
+    "③ 训练目标冲突（RL 鼓励深想 vs 学会打断）",
+    "折中：先跑完思维链"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 71,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "SSE 和 WebSocket 区别？为什么 LLM 用 SSE？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "流式通信"
+   ],
+   "options": null,
+   "standard_answer": "SSE 服务端单向推送（客户端只接收），WebSocket 全双工。LLM 流式输出是「模型一直推 token、用户只看」，单向够用且轻量、HTTP 原生。SSE 局限：HTTP/1.1 单域名 6 连接、只文本、单向致双通道复杂；WebSocket 局限：有状态难扩展、穿透问题。选型：**单向推用 SSE，双向才用 WebSocket**。",
+   "answer_points": [
+    "SSE 服务端单向推送（客户端只接收）",
+    "WebSocket 全双工",
+    "LLM 流式输出是「模型一直推 token、用户只看」",
+    "单向够用且轻量、HTTP 原生",
+    "SSE 局限：HTTP/1.1 单域名 6 连接、只文本、单向致双通道复杂"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 72,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "什么是 LLM 网关？解决什么？",
+   "question_type": "concept",
+   "difficulty": "hard",
+   "tags": [
+    "工具调用",
+    "MCP",
+    "Embedding",
+    "网关"
+   ],
+   "options": null,
+   "standard_answer": "架在应用与多模型 API 间的中间层。解决：API Key 集中管理、统一重试/限流、成本追踪分账、换模型不改业务码、安全过滤。六大功能含**语义缓存（Semantic Caching）**（问题向量化，相似命中直接返，省钱降延迟）。框架：LiteLLM、Bifrost、One API。",
+   "answer_points": [
+    "架在应用与多模型 API 间的中间层",
+    "解决：API Key 集中管理、统一重试/限流、成本追踪分账、换模型不改业务…",
+    "六大功能含**语义缓存（Semantic Caching）**（问题向量化",
+    "相似命中直接返",
+    "省钱降延迟）"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 73,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "BatchNorm 为什么在 Transformer / LLM 里几乎不用？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "归一化",
+    "训练稳定性",
+    "RMSNorm",
+    "LayerNorm",
+    "BatchNorm"
+   ],
+   "options": null,
+   "standard_answer": "BatchNorm 依赖 batch 维度统计均值方差，而 LLM 训练有两大障碍：① 序列长度不一、padding 破坏同批样本可比性；② 大 batch 显存受限、小 batch 统计噪声大、且分布式下跨卡同步复杂。所以 Transformer 改用 LayerNorm / RMSNorm——每个样本沿自身 token 维度归一化，与 batch 无关，天然适配变长序列和大规模分布式训练。",
+   "answer_points": [
+    "BatchNorm 依赖 batch 维度统计均值方差",
+    "而 LLM 训练有两大障碍：① 序列长度不一、padding 破坏同批样本可…",
+    "② 大 batch 显存受限、小 batch 统计噪声大、且分布式下跨卡同步…",
+    "所以 Transformer 改用 LayerNorm / RMSNorm—…",
+    "与 batch 无关"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 74,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "LayerNorm 和 RMSNorm 区别？为什么 LLM 普遍用 RMSNorm？",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "归一化",
+    "训练稳定性",
+    "RMSNorm",
+    "LayerNorm"
+   ],
+   "options": null,
+   "standard_answer": "- LayerNorm：先减均值（居中）、再除 RMS（缩放）；\n- RMSNorm：去掉「减均值」步骤，只保留缩放。研究表明 LN 有效的关键是「重新缩放」而非「重新居中」，所以去掉居中既无损效果又省计算。\n- 优势：计算量比 LayerNorm 减少约 7%-64%（已验证，对超大模型很关键）；少存一份均值状态。\n- 记忆锚点：LLaMA 系列用 RMSNorm，BERT 用 LayerNorm。",
+   "answer_points": [
+    "LayerNorm：先减均值（居中）、再除 RMS（缩放）；",
+    "RMSNorm：去掉「减均值」步骤，只保留缩放。研究表明 LN 有效的关键是…",
+    "优势：计算量比 LayerNorm 减少约 7%-64%（已验证，对超大模型…",
+    "记忆锚点：LLaMA 系列用 RMSNorm，BERT 用 LayerNor…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 75,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "Pre-LN 和 Post-LN 是什么？为什么现代 LLM 几乎都用 Pre-LN？[进阶，面试必考]",
+   "question_type": "concept",
+   "difficulty": "easy",
+   "tags": [
+    "归一化",
+    "训练稳定性",
+    "RMSNorm",
+    "LayerNorm",
+    "归一化位置"
+   ],
+   "options": null,
+   "standard_answer": "这是「归一化放残差加和之前还是之后」的位置之争：\n- Post-LN（原版 Transformer）：先子层 → 残差加和 → 再 LayerNorm。问题：深层梯度不稳、训练难收敛，严重依赖学习率 warmup，深了训不动；\n- Pre-LN（现代主流）：先 LayerNorm → 子层 → 再加残差。梯度路径更平滑、训练稳定性大幅提升、warmup 需求弱、便于训极深网络；代价是部分任务理论收敛精度略低于 Post-LN。\n- 一句话：Post-LN 要精心调 warmup 才稳，Pre-LN 开箱即稳——所以 GPT/LLaMA 等全用 Pre-LN + RMSNorm。",
+   "answer_points": [
+    "这是「归一化放残差加和之前还是之后」的位置之争：",
+    "Post-LN（原版 Transformer）：先子层 → 残差加和 → 再…",
+    "Pre-LN（现代主流）：先 LayerNorm → 子层 → 再加残差。梯…",
+    "一句话：Post-LN 要精心调 warmup 才稳，Pre-LN 开箱即稳…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 76,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "既然 Pre-LN / 残差这么稳，那「梯度消失和爆炸」在大模型里还重要吗？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "归一化",
+    "训练稳定性",
+    "归一化位置",
+    "梯度"
+   ],
+   "options": null,
+   "standard_answer": "仍是底层原理，只是大模型已从结构上基本规避：\n- 消失：靠 ReLU/SiLU/GELU（正区间导数≈1）+ 残差连接（快捷路径让梯度无损跳过若干层反传，把梯度的连乘变成更温和的连加，打破指数衰减）；\n- 爆炸：最立竿见影的是 梯度裁剪（L2 范数超阈值等比缩小），外加合理初始化（He/Xavier）；\n- 结论：残差 + 归一化（Pre-LN）+ 裁剪，三件套让 LLM 既能训很深又不易崩，这也是上面归一化设计的意义所在。",
+   "answer_points": [
+    "仍是底层原理",
+    "只是大模型已从结构上基本规避：",
+    "消失：靠 ReLU/SiLU/GELU（正区间导数≈1）+ 残差连接（快捷路…",
+    "爆炸：最立竿见影的是梯度裁剪（L2 范数超阈值等比缩小），外加合理初始化（H…",
+    "结论：残差 + 归一化（Pre-LN）+ 裁剪，三件套让 LLM 既能训很深…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 77,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "DeepSpeed ZeRO 三个阶段分别分区了什么？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "分布式训练",
+    "推理优化",
+    "ZeRO",
+    "梯度"
+   ],
+   "options": null,
+   "standard_answer": "（逐级「多分区一样东西」，从显存大头往小头切）\n- **Stage 1**：只把**优化器状态**分摊到各卡（含 FP32 主权重副本、一阶动量、二阶方差，每卡仅 1/N）；**模型参数和梯度仍每卡完整复制** → 适合「模型装得下、但优化器状态 OOM」；\n- **Stage 2**：再分摊**梯度**（每卡 1/N）→ 最常用，梯度+优化器撑爆时；\n- **Stage 3**：再分摊**模型参数**（每卡 1/N）→ 单卡连模型本身都装不下时。\n- 核心记忆：Stage1/2 解决「能前向→能反向更新」；Stage3 解决「连前向都装不下」。补充：混合精度下 Adam 优化器状态每参数共 **12 字节**（FP32 主权重副本 4 + m 4 + v 4）≈ FP16 权重(2 字节)的 **6 倍**——这才是显存大头。",
+   "answer_points": [
+    "（逐级「多分区一样东西」",
+    "从显存大头往小头切）",
+    "**Stage 1**：只把**优化器状态**分摊到各卡（含 FP32 主权…",
+    "**Stage 2**：再分摊**梯度**（每卡 1/N）→ 最常用，梯度+…",
+    "**Stage 3**：再分摊**模型参数**（每卡 1/N）→ 单卡连模型…"
+   ],
+   "explanation": "术语澄清：严格说只有 m、v 是优化器内部状态，FP32 主权重副本是「模型参数」（因混合精度更新在 FP32 下进行、由优化器持有副本）；ZeRO/DeepSpeed 将三者统称「优化器状态」并在 Stage 1 一并分区。",
+   "code_template": null,
+   "source_raw_index": 78,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "DeepSpeed、FlashAttention、Accelerate 各自解决什么？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "分布式训练",
+    "推理优化",
+    "ZeRO",
+    "FlashAttention",
+    "文档切分"
+   ],
+   "options": null,
+   "standard_answer": "DeepSpeed（分布式训练引擎）解决「装不下」——ZeRO 用通信换显存；FlashAttention（计算算子）解决「算得慢/显存高」——分块+重计算降 O(n²) 显存读写；Accelerate（调度接口）解决「不好用」——封装 DDP/DeepSpeed 自动处理设备放置与数据分发。",
+   "answer_points": [
+    "DeepSpeed（分布式训练引擎）解决「装不下」——ZeRO 用通信换显存",
+    "FlashAttention（计算算子）解决「算得慢/显存高」——分块+重计…",
+    "Accelerate（调度接口）解决「不好用」——封装 DDP/DeepSp…"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 79,
+   "group_id": "g8",
+   "group_seq": 1,
+   "group_label": "DeepSpeed、Flas"
+  },
+  {
+   "question_text": "为什么 ZeRO Stage 3 能训放不进单卡的超大模型？",
+   "question_type": "short_answer",
+   "difficulty": "easy",
+   "tags": [
+    "分布式训练",
+    "推理优化",
+    "ZeRO"
+   ],
+   "options": null,
+   "standard_answer": "连模型参数也分区，每卡只存 1/N，前向/反向时按需 all-gather 拼接，突破单卡显存上限。",
+   "answer_points": [
+    "连模型参数也分区",
+    "每卡只存 1/N",
+    "前向/反向时按需 all-gather 拼接",
+    "突破单卡显存上限"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 80,
+   "group_id": "g8",
+   "group_seq": 2,
+   "group_label": null
+  },
+  {
+   "question_text": "你负责的 RAG 客服系统，用户反馈「答非所问 / 经常编造」。请完整定位并解决。",
+   "question_type": "case",
+   "difficulty": "hard",
+   "tags": [
+    "场景题",
+    "综合",
+    "Rerank",
+    "文档切分",
+    "RAG"
+   ],
+   "options": null,
+   "standard_answer": "先按排查顺序：输入→分块→相关性→排序（见第七章）。若召回对了但仍编造 → 进幻觉治理（指令约束 + 强制引用溯源 + 工具校验）；若召回不准 → 用语义切分+重叠、混合检索+Reranker、摘要/预测问题多入口、相关块联动优化。最后建评估集+反馈闭环持续迭代。",
+   "answer_points": [
+    "先按排查顺序：输入→分块→相关性→排序（见第七章）",
+    "若召回对了但仍编造 → 进幻觉治理（指令约束 + 强制引用溯源 + 工具校验…",
+    "若召回不准 → 用语义切分+重叠、混合检索+Reranker、摘要/预测问题…",
+    "最后建评估集+反馈闭环持续迭代"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 81,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "公司要微调 70B 基座，只有 8 张 80G 显卡，怎么规划？",
+   "question_type": "case",
+   "difficulty": "hard",
+   "tags": [
+    "场景题",
+    "综合",
+    "RoPE",
+    "LoRA",
+    "ZeRO"
+   ],
+   "options": null,
+   "standard_answer": "参数量级估算 → ZeRO Stage 2/3 分摊优化器/梯度/参数；LoRA 只训 0.1%~1% 省显存；可叠 8bit/4bit 量化基座；DeepSpeed+Accelerate 统一调度；推理侧 KV Cache + RoPE 省显存。",
+   "answer_points": [
+    "参数量级估算 → ZeRO Stage 2/3 分摊优化器/梯度/参数",
+    "LoRA 只训 0.1%~1% 省显存",
+    "可叠 8bit/4bit 量化基座",
+    "DeepSpeed+Accelerate 统一调度",
+    "推理侧 KV Cache + RoPE 省显存"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 82,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "如何把开源基座对齐成「有用且无害」的助手？",
+   "question_type": "case",
+   "difficulty": "hard",
+   "tags": [
+    "场景题",
+    "综合",
+    "LoRA",
+    "DPO",
+    "PPO"
+   ],
+   "options": null,
+   "standard_answer": "先 SFT（可 LoRA）打底 → 再对齐：有 RM 资源+求上限选 PPO；想避 RM 选 GRPO（组内比较）；有高质量对比数据求稳定选 DPO。强调「对齐税」与奖励黑客风险。",
+   "answer_points": [
+    "先 SFT（可 LoRA）打底 → 再对齐：有 RM 资源+求上限选 PPO",
+    "想避 RM 选 GRPO（组内比较）",
+    "有高质量对比数据求稳定选 DPO",
+    "强调「对齐税」与奖励黑客风险"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 83,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  },
+  {
+   "question_text": "你说用 RoPE，要把训练长度 4K 的模型用到 32K 长上下文，注意什么？",
+   "question_type": "case",
+   "difficulty": "hard",
+   "tags": [
+    "场景题",
+    "综合",
+    "RoPE",
+    "LoRA",
+    "微调"
+   ],
+   "options": null,
+   "standard_answer": "RoPE 有外推能力但长上下文常需：位置插值(PI)/NTK-aware 缩放调整旋转基频，避免高频分量在远超训练长度时失配；配合长上下文微调（LongLoRA 等）；监控困惑度与检索/排序质量是否随长度退化。",
+   "answer_points": [
+    "RoPE 有外推能力但长上下文常需：位置插值(PI)/NTK-aware 缩…",
+    "避免高频分量在远超训练长度时失配",
+    "配合长上下文微调（LongLoRA 等）",
+    "监控困惑度与检索/排序质量是否随长度退化"
+   ],
+   "explanation": null,
+   "code_template": null,
+   "source_raw_index": 84,
+   "group_id": null,
+   "group_seq": null,
+   "group_label": null
+  }
+ ]
+}

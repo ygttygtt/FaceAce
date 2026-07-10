@@ -14,6 +14,7 @@ type Tab = "records" | "wrong" | "bookmarks" | "simulations";
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("records");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
 
   const { data: sessions } = useQuery({
@@ -39,6 +40,23 @@ export default function HistoryPage() {
     mutationFn: (id: string) => api.deleteRecord(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["practiceRecords"] }),
   });
+  const batchDeleteRecords = useMutation({
+    mutationFn: (ids: string[]) => api.batchDeleteRecords(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["practiceRecords"] });
+      setSelected(new Set());
+    },
+  });
+
+  const toggle = (id: string) => {
+    const s = new Set(selected);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setSelected(s);
+  };
+  const toggleAll = () => {
+    if (selected.size === records.length) setSelected(new Set());
+    else setSelected(new Set(records.map((r) => r.id)));
+  };
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "records", label: "刷题记录", count: records.length },
@@ -56,7 +74,7 @@ export default function HistoryPage() {
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => { setTab(t.key); setSelected(new Set()); }}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t.key
                 ? "border-blue-600 text-blue-700"
@@ -73,17 +91,65 @@ export default function HistoryPage() {
 
       {/* tab content */}
       {tab === "records" && (
-        <div className="space-y-2">
-          {records.length === 0 ? (
-            <div className="text-gray-400 text-sm py-8 text-center">暂无刷题记录</div>
-          ) : (
-            records.map((r) => {
-              const qText = r.question?.question_text || (r as any).question_text || "（题目已删除）";
-              return (
-                <div key={r.id} className="bg-white border rounded-lg p-3 hover:border-blue-300 transition-colors group">
-                  <div className="flex justify-between items-start">
+        <div>
+          {/* batch action bar */}
+          {records.length > 0 && (
+            <div className="flex items-center gap-3 mb-3 px-1">
+              <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.size > 0 && selected.size === records.length}
+                  onChange={toggleAll}
+                />
+                {selected.size > 0 ? `已选 ${selected.size}` : "全选"}
+              </label>
+              {selected.size > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm(`删除选中的 ${selected.size} 条记录？`))
+                      batchDeleteRecords.mutate(Array.from(selected));
+                  }}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  批量删除（{selected.size}）
+                </button>
+              )}
+            </div>
+          )}
+          <div className="space-y-2">
+            {records.length === 0 ? (
+              <div className="text-gray-400 text-sm py-8 text-center">暂无刷题记录</div>
+            ) : (
+              records.map((r) => {
+                const qText = r.question?.question_text || (r as any).question_text || "（题目已删除）";
+                return (
+                  <div key={r.id} className="bg-white border rounded-lg p-3 hover:border-blue-300 transition-colors group flex gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggle(r.id)}
+                      className="mt-1 shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{qText}</div>
+                      <div className="flex justify-between items-start">
+                        <div className="text-sm font-medium truncate flex-1">{qText}</div>
+                        <div className="flex items-center gap-2 ml-3 shrink-0">
+                          <Link
+                            to={`/practice/record/${r.id}`}
+                            className="px-2 py-1 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50"
+                          >
+                            详情
+                          </Link>
+                          <button
+                            onClick={() => {
+                              if (confirm("删除此条记录？")) deleteRecord.mutate(r.id);
+                            }}
+                            className="px-2 py-1 text-xs text-red-400 border border-red-200 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                         <span>{new Date(r.created_at).toLocaleString()}</span>
                         {r.grading && (
@@ -97,38 +163,22 @@ export default function HistoryPage() {
                           我的答案: {r.user_answer.slice(0, 80)}{r.user_answer.length > 80 ? "..." : ""}
                         </div>
                       )}
-                    </div>
-                    <div className="flex items-center gap-2 ml-3 shrink-0">
-                      <Link
-                        to={`/practice/record/${r.id}`}
-                        className="px-2 py-1 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50"
-                      >
-                        详情
-                      </Link>
-                      <button
-                        onClick={() => {
-                          if (confirm("删除此条记录？")) deleteRecord.mutate(r.id);
-                        }}
-                        className="px-2 py-1 text-xs text-red-400 border border-red-200 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        删除
-                      </button>
+                      {r.grading && (
+                        <div className="mt-1 pt-1 border-t text-xs space-y-0.5">
+                          {r.grading.strengths?.length > 0 && (
+                            <div className="text-green-700">✓ {r.grading.strengths.slice(0, 2).join("；")}</div>
+                          )}
+                          {r.grading.weaknesses?.length > 0 && (
+                            <div className="text-red-700">✗ {r.grading.weaknesses.slice(0, 2).join("；")}</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {r.grading && (
-                    <div className="mt-2 pt-2 border-t text-xs space-y-1">
-                      {r.grading.strengths?.length > 0 && (
-                        <div className="text-green-700">✓ {r.grading.strengths.slice(0, 2).join("；")}</div>
-                      )}
-                      {r.grading.weaknesses?.length > 0 && (
-                        <div className="text-red-700">✗ {r.grading.weaknesses.slice(0, 2).join("；")}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
