@@ -162,13 +162,14 @@ export const api = {
   // ---- ingest ----
   uploadFile: async (
     file: File,
-    params: { profile_id?: string; auto_approve?: boolean }
+    params: { profile_id?: string; auto_approve?: boolean; deck_id?: string }
   ): Promise<IngestJob> => {
     const fd = new FormData();
     fd.append("file", file);
     const sp = new URLSearchParams();
     if (params.profile_id) sp.set("profile_id", params.profile_id);
     if (params.auto_approve) sp.set("auto_approve", "true");
+    if (params.deck_id) sp.set("deck_id", params.deck_id);
     const s = sp.toString();
     const res = await fetch(`${BASE}/api/ingest/upload${s ? `?${s}` : ""}`, {
       method: "POST",

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import type { IngestJobDetail } from "../types";
 
@@ -15,6 +16,8 @@ const STATUS_LABEL: Record<string, string> = {
 export default function IngestPage() {
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const defaultDeckId = searchParams.get("deck_id") || "";
 
   const { data: jobsData } = useQuery({
     queryKey: ["ingestJobs"],
@@ -33,7 +36,7 @@ export default function IngestPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      await api.uploadFile(file, {});
+      await api.uploadFile(file, { deck_id: defaultDeckId || undefined });
       qc.invalidateQueries({ queryKey: ["ingestJobs"] });
     } catch (err: any) {
       alert(err.message);
@@ -49,7 +52,7 @@ export default function IngestPage() {
       const parsed = JSON.parse(text);
       const questions = Array.isArray(parsed) ? parsed : parsed.questions;
       if (!Array.isArray(questions)) throw new Error("JSON 需为题目数组或 {questions:[...]}");
-      const r = await api.importJson(questions);
+      const r = await api.importJson(questions, defaultDeckId || null);
       alert(`导入完成:成功 ${r.inserted} 题,跳过 ${r.skipped} 题`);
       qc.invalidateQueries({ queryKey: ["questions"] });
       qc.invalidateQueries({ queryKey: ["decks"] });
@@ -137,7 +140,7 @@ export default function IngestPage() {
 
         <div className="overflow-auto">
           {reviewJobId ? (
-            <ReviewPanel jobId={reviewJobId} />
+            <ReviewPanel jobId={reviewJobId} defaultDeckId={defaultDeckId} />
           ) : (
             <div className="text-gray-400 text-sm">选择左侧任务查看归一化结果</div>
           )}
@@ -147,7 +150,7 @@ export default function IngestPage() {
   );
 }
 
-function ReviewPanel({ jobId }: { jobId: string }) {
+function ReviewPanel({ jobId, defaultDeckId }: { jobId: string; defaultDeckId: string }) {
   const qc = useQueryClient();
   const { data: job, isLoading } = useQuery({
     queryKey: ["ingestJob", jobId],
@@ -156,7 +159,7 @@ function ReviewPanel({ jobId }: { jobId: string }) {
   });
   const { data: decksData } = useQuery({ queryKey: ["decks"], queryFn: api.listDecks });
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [deckId, setDeckId] = useState<string>("");
+  const [deckId, setDeckId] = useState<string>(defaultDeckId);
   const decks = decksData?.items || [];
 
   if (isLoading) return <div className="text-gray-400 text-sm">加载中...</div>;

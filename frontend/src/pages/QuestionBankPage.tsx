@@ -164,7 +164,7 @@ export default function QuestionBankPage() {
           </h1>
           <div className="flex gap-2">
             <Link
-              to="/ingest"
+              to={deckId ? `/ingest?deck_id=${deckId}` : "/ingest"}
               className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             >
               导入文档

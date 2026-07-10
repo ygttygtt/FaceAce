@@ -53,6 +53,7 @@ async def run_pipeline(
     job: IngestJob,
     profile_id: str | None = None,
     auto_approve: bool = False,
+    deck_id: str | None = None,
 ) -> IngestJob:
     jdir = job_dir(job.id)
 
@@ -95,7 +96,9 @@ async def run_pipeline(
         # 4) store
         if auto_approve:
             for q in all_questions:
-                db.add(Question(**_to_question_dict(q, job.file_name)))
+                d = _to_question_dict(q, job.file_name)
+                d["deck_id"] = deck_id
+                db.add(Question(**d))
             job.status = "done"
         else:
             job.status = "pending_review"
@@ -110,7 +113,7 @@ async def run_pipeline(
 
 
 async def process_job_background(
-    job_id: str, file_path: str, profile_id: str | None, auto_approve: bool
+    job_id: str, file_path: str, profile_id: str | None, auto_approve: bool, deck_id: str | None = None
 ) -> None:
     """Background runner owning its own DB session (for FastAPI BackgroundTasks)."""
     db = SessionLocal()
@@ -118,6 +121,6 @@ async def process_job_background(
         job = db.get(IngestJob, job_id)
         if not job:
             return
-        await run_pipeline(db, job, profile_id=profile_id, auto_approve=auto_approve)
+        await run_pipeline(db, job, profile_id=profile_id, auto_approve=auto_approve, deck_id=deck_id)
     finally:
         db.close()

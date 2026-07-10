@@ -61,6 +61,7 @@ async def upload(
     db: Session = Depends(get_db),
     profile_id: str | None = None,
     auto_approve: bool = False,
+    deck_id: str | None = None,
 ):
     ext = Path(file.filename).suffix.lower()
     if ext not in SUPPORTED_EXT:
@@ -79,7 +80,7 @@ async def upload(
     db.refresh(job)
 
     background.add_task(
-        process_job_background, job.id, str(save_path), profile_id, auto_approve
+        process_job_background, job.id, str(save_path), profile_id, auto_approve, deck_id
     )
     return IngestJobOut.model_validate(job).model_dump()
 
