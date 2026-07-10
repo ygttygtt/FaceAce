@@ -15,6 +15,7 @@ export interface Question {
   source_raw_index: number | null;
   metadata_: Record<string, any>;
   review_status: string;
+  user_answer_override?: string | null;
   deck_id: string | null;
   created_at: string;
   updated_at: string;
@@ -146,4 +147,30 @@ export interface IngestJobDetail extends IngestJob {
   file_path: string;
   extracted_text: string | null;
   questions: NormalizedQuestion[];
+}
+
+export interface Bookmark {
+  id: string;
+  question_id: string;
+  created_at: string;
+}
+
+export interface Note {
+  id: string;
+  question_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PracticeRecordDetail {
+  id: string;
+  question_id: string;
+  user_answer: string | null;
+  revealed: boolean;
+  duration_sec: number;
+  grading_id: string | null;
+  created_at: string;
+  grading?: GradingResult | null;
+  question?: Question | null;
 }

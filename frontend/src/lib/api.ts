@@ -1,9 +1,12 @@
 import type {
+  Bookmark,
   Deck,
   GradingResult,
   IngestJob,
   IngestJobDetail,
   LLMProfile,
+  Note,
+  PracticeRecordDetail,
   PromptTemplate,
   Question,
   SimulationReport,
@@ -52,6 +55,7 @@ export const api = {
     qtype?: string;
     tags?: string;
     deck_id?: string;
+    bookmarked?: boolean;
     limit?: number;
     offset?: number;
   }) => req<{ items: Question[]; total: number }>(`/questions${qs(params)}`),
@@ -108,6 +112,37 @@ export const api = {
   listRecords: (question_id?: string) =>
     req<{ items: any[] }>(`/practice/records${qs({ question_id })}`),
   wrongQuestions: () => req<{ items: Question[] }>(`/practice/wrong-questions`),
+
+  // ---- bookmarks ----
+  toggleBookmark: (question_id: string) =>
+    req<{ bookmarked: boolean; bookmark_id: string | null }>(`/bookmarks/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ question_id }),
+    }),
+  listBookmarks: () => req<{ items: Bookmark[] }>(`/bookmarks`),
+  checkBookmark: (question_id: string) =>
+    req<{ bookmarked: boolean }>(`/bookmarks/check/${question_id}`),
+
+  // ---- notes ----
+  getNote: (question_id: string) => req<Note | { content: string }>(`/notes/${question_id}`),
+  upsertNote: (question_id: string, content: string) =>
+    req<Note>(`/notes/${question_id}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+  deleteNote: (question_id: string) =>
+    req<void>(`/notes/${question_id}`, { method: "DELETE" }),
+
+  // ---- answer override ----
+  updateAnswerOverride: (question_id: string, answer: string | null) =>
+    req<{ id: string; user_answer_override: string | null }>(
+      `/questions/${question_id}/answer-override`,
+      { method: "PUT", body: JSON.stringify({ answer }) }
+    ),
+
+  // ---- practice detail ----
+  getPracticeRecordDetail: (record_id: string) =>
+    req<PracticeRecordDetail>(`/practice/records/${record_id}/detail`),
 
   // ---- simulation ----
   createSession: (data: {
