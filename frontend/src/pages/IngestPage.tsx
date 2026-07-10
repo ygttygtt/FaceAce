@@ -80,10 +80,13 @@ export default function IngestPage() {
           <p className="text-xs text-gray-400 mt-2">
             .md/.txt/.docx/.pdf(需可复制文字),后台调 LLM 归一化后进入「待审核」。
           </p>
+          <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+            <strong>⚠️ PDF 限制：</strong>仅支持可复制文字的 PDF，扫描件/图片 PDF 无法解析。如果上传失败，请用方式二。
+          </div>
         </div>
         <div className="bg-white border rounded p-4">
           <label className="block text-sm text-gray-600 mb-2">
-            方式二:导入已结构化 JSON(跳过 LLM,直接入库)
+            方式二:导入已结构化 JSON(推荐，尤其 PDF)
           </label>
           <input
             type="file"
@@ -91,13 +94,25 @@ export default function IngestPage() {
             onChange={onImportJson}
             className="text-sm"
           />
-          <p className="text-xs text-gray-400 mt-2">
-            适合其它 agent 处理好的数据,或导出分享的题库。格式见{" "}
-            <a href="/docs/schema.md" target="_blank" className="text-blue-600 hover:underline">
-              标准格式规范
-            </a>
-            。
-          </p>
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800 space-y-1.5">
+            <p><strong>推荐流程：</strong>用另一个 AI（Claude / GPT / 通义等能读 PDF 的）帮你整理文档。</p>
+            <p><strong>需要发给 AI 的材料：</strong></p>
+            <ol className="list-decimal pl-4 space-y-0.5">
+              <li>原始文档（PDF/Word/图片）</li>
+              <li>
+                格式规范文档：
+                <a href="/api/questions/export" target="_blank" className="text-blue-600 hover:underline">导出现有题库</a>
+                可参考格式，或查看{" "}
+                <code className="bg-blue-100 px-1 rounded">docs/schema.md</code>
+              </li>
+              <li>
+                Agent 指令文档：
+                <code className="bg-blue-100 px-1 rounded">docs/agent_extract_instructions.md</code>
+                ，里面有完整的 prompt 可直接复制粘贴给 AI
+              </li>
+            </ol>
+            <p>AI 会输出 JSON 文件，在此选择该文件即可导入。</p>
+          </div>
         </div>
       </div>
 
