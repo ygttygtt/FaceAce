@@ -153,8 +153,32 @@ def draw_questions(
         if tags:
             items = [it for it in items if any(t in (it.tags or []) for t in tags)]
 
-    random.shuffle(items)
-    return items[:limit]
+    # Group-aware drawing: keep follow-up chains intact
+    # 1) Group items by group_id
+    grouped: dict[str, list[Question]] = {}
+    ungrouped: list[Question] = []
+    for item in items:
+        if item.group_id:
+            grouped.setdefault(item.group_id, []).append(item)
+        else:
+            ungrouped.append(item)
+
+    # 2) Sort each group by group_seq
+    for gid in grouped:
+        grouped[gid].sort(key=lambda x: x.group_seq or 0)
+
+    # 3) Build units: each unit is a group (all its questions) or a single ungrouped question
+    units: list[list[Question]] = list(grouped.values()) + [[u] for u in ungrouped]
+    random.shuffle(units)
+
+    # 4) Flatten units until we hit limit (whole groups are kept intact)
+    result: list[Question] = []
+    for unit in units:
+        result.extend(unit)
+        if len(result) >= limit:
+            break
+
+    return result
 
 
 def export_questions(db: Session) -> list[dict]:
