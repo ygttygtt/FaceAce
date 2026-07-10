@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import type { PracticeRecordDetail } from "../types";
+import MarkdownView from "../components/MarkdownView";
+import type { PracticeRecordDetail, Question } from "../types";
 
 const VERDICT_COLOR: Record<string, string> = {
   correct: "text-green-600",
@@ -15,6 +16,7 @@ type Tab = "records" | "wrong" | "bookmarks" | "simulations";
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("records");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bookmarkDetail, setBookmarkDetail] = useState<Question | null>(null);
   const qc = useQueryClient();
 
   const { data: sessions } = useQuery({
@@ -214,29 +216,21 @@ export default function HistoryPage() {
               {bookmarks?.items.map((b) => {
                 const q = (b as any).question;
                 return (
-                  <div key={b.id} className="bg-white border rounded-lg p-3 text-sm hover:border-yellow-300 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">
-                          {q?.question_text || `题目 ${b.question_id}（已删除）`}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                          {q?.difficulty && <span>{q.difficulty}</span>}
-                          {q?.question_type && <span>{q.question_type}</span>}
-                          {q?.tags?.slice(0, 3).map((t: string) => (
-                            <span key={t} className="text-blue-600">#{t}</span>
-                          ))}
-                          <span className="text-gray-400">收藏于 {new Date(b.created_at).toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-3 shrink-0">
-                        <Link
-                          to="/bank"
-                          className="px-2 py-1 text-xs text-blue-600 border border-blue-200 rounded hover:bg-blue-50"
-                        >
-                          题库查看
-                        </Link>
-                      </div>
+                  <div
+                    key={b.id}
+                    className="bg-white border rounded-lg p-3 text-sm hover:border-yellow-300 transition-colors cursor-pointer"
+                    onClick={() => q && setBookmarkDetail(q)}
+                  >
+                    <div className="font-medium truncate">
+                      {q?.question_text || `题目 ${b.question_id}（已删除）`}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                      {q?.difficulty && <span>{q.difficulty}</span>}
+                      {q?.question_type && <span>{q.question_type}</span>}
+                      {q?.tags?.slice(0, 3).map((t: string) => (
+                        <span key={t} className="text-blue-600">#{t}</span>
+                      ))}
+                      <span className="text-gray-400">收藏于 {new Date(b.created_at).toLocaleString()}</span>
                     </div>
                   </div>
                 );
@@ -266,6 +260,45 @@ export default function HistoryPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* question detail modal (for bookmarks) */}
+      {bookmarkDetail && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50"
+          onClick={() => setBookmarkDetail(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-3">
+              <h2 className="font-bold">题目详情</h2>
+              <button onClick={() => setBookmarkDetail(null)} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+            </div>
+            <div className="text-gray-900 mb-3 whitespace-pre-wrap">{bookmarkDetail.question_text}</div>
+            {bookmarkDetail.standard_answer && (
+              <div className="mb-3">
+                <div className="text-xs text-gray-500 mb-1">标准答案</div>
+                <MarkdownView>{bookmarkDetail.standard_answer}</MarkdownView>
+              </div>
+            )}
+            {bookmarkDetail.explanation && (
+              <div className="mb-3">
+                <div className="text-xs text-gray-500 mb-1">解析</div>
+                <MarkdownView>{bookmarkDetail.explanation}</MarkdownView>
+              </div>
+            )}
+            {bookmarkDetail.answer_points?.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs text-gray-500 mb-1">评分要点</div>
+                <ul className="list-disc pl-5 text-sm">
+                  {bookmarkDetail.answer_points.map((p, i) => (<li key={i}>{p}</li>))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
