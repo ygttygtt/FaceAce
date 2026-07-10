@@ -49,12 +49,12 @@ export default function SimulationPage() {
   }, [session]);
 
   const speakLast = (msgs: SimulationMessage[]) => {
-    if (!ttsAutoPlay || !userConfig?.tts_enabled || msgs.length === 0) return;
+    if (!ttsAutoPlay || msgs.length === 0) return;
     const last = msgs[msgs.length - 1];
     if (last.role === "interviewer") {
       ttsSpeak(last.content, {
-        voice: userConfig.tts_voice,
-        rate: userConfig.tts_rate,
+        voice: userConfig?.tts_voice || "",
+        rate: userConfig?.tts_rate || 1,
         enabled: true,
       });
     }
@@ -131,12 +131,11 @@ export default function SimulationPage() {
       <div className="px-6 py-3 border-b bg-white flex justify-between items-center">
         <div className="font-medium">{session?.title}</div>
         <div className="flex gap-3 items-center">
-          <label className="text-xs flex items-center gap-1 text-gray-600">
+          <label className="text-xs flex items-center gap-1 text-gray-600 cursor-pointer">
             <input
               type="checkbox"
               checked={ttsAutoPlay}
               onChange={(e) => setTtsAutoPlay(e.target.checked)}
-              disabled={!userConfig?.tts_enabled}
             />
             自动朗读
           </label>
