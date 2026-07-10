@@ -280,6 +280,8 @@ function TTSSection() {
   const { data: userConfig } = useQuery({ queryKey: ["userConfig"], queryFn: api.getUser });
   const { data: profiles } = useQuery({ queryKey: ["profiles"], queryFn: api.listProfiles });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [testText, setTestText] = useState("你好，欢迎参加今天的面试，请简单做一下自我介绍。");
+  const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     const load = () => setVoices(getVoices());
@@ -292,7 +294,30 @@ function TTSSection() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["userConfig"] }),
   });
 
+  const stopTts = () => {
+    if (ttsAvailable()) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  };
+
+  const playTest = () => {
+    if (!ttsAvailable() || !testText.trim()) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(testText);
+    u.lang = "zh-CN";
+    u.rate = userConfig?.tts_rate ?? 1.0;
+    if (userConfig?.tts_voice) {
+      const v = voices.find((v) => v.voiceURI === userConfig.tts_voice);
+      if (v) u.voice = v;
+    }
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  };
+
   if (!userConfig) return <div className="text-gray-400 text-sm">加载中...</div>;
+
+  const currentVoice = voices.find((v) => v.voiceURI === userConfig.tts_voice);
 
   return (
     <div className="bg-white border rounded p-4 space-y-4 text-sm">
@@ -361,18 +386,35 @@ function TTSSection() {
                 className="block w-full mt-1"
               />
             </label>
-            <button
-              onClick={() =>
-                ttsSpeak("这是一段测试语音,用于检查朗读效果。", {
-                  voice: userConfig.tts_voice,
-                  rate: userConfig.tts_rate,
-                  enabled: true,
-                })
-              }
-              className="px-3 py-1.5 border rounded text-sm"
-            >
-              试听
-            </button>
+            {currentVoice && (
+              <div className="text-xs text-gray-400">
+                当前语音: {currentVoice.name}（{currentVoice.lang}）
+              </div>
+            )}
+
+            <div className="border-t pt-3">
+              <div className="text-xs text-gray-500 mb-1.5">试听测试</div>
+              <textarea
+                value={testText}
+                onChange={(e) => setTestText(e.target.value)}
+                rows={2}
+                className="w-full border rounded p-2 text-sm"
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={playTest}
+                  disabled={speaking || !testText.trim()}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+                >
+                  {speaking ? "朗读中..." : "播放"}
+                </button>
+                {speaking && (
+                  <button onClick={stopTts} className="px-3 py-1.5 border border-red-200 text-red-600 rounded text-sm">
+                    停止
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
