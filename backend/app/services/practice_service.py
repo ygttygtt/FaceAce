@@ -16,9 +16,12 @@ from app.schemas.practice import GradingResultOut, PracticeRecordCreate
 
 
 def record_practice(db: Session, data: PracticeRecordCreate) -> PracticeRecord:
+    # Snapshot question_text so history is self-contained even if question is deleted
+    q = db.get(Question, data.question_id)
     pr = PracticeRecord(
         id=new_id(),
         question_id=data.question_id,
+        question_text=q.question_text if q else None,
         user_answer=data.user_answer,
         revealed=data.revealed,
         duration_sec=data.duration_sec,
@@ -153,6 +156,35 @@ def list_records(db: Session, question_id: str | None = None, limit: int = 50):
     if question_id:
         q = q.filter(PracticeRecord.question_id == question_id)
     return q.order_by(PracticeRecord.created_at.desc()).limit(limit).all()
+
+
+def delete_record(db: Session, record_id: str) -> bool:
+    pr = db.get(PracticeRecord, record_id)
+    if not pr:
+        return False
+    # also delete associated grading result if exists
+    if pr.grading_id:
+        gr = db.get(GradingResult, pr.grading_id)
+        if gr:
+            db.delete(gr)
+    db.delete(pr)
+    db.commit()
+    return True
+
+
+def delete_records_by_question(db: Session, question_id: str) -> int:
+    """Delete all practice records (and their grading results) for a question."""
+    records = db.query(PracticeRecord).filter(PracticeRecord.question_id == question_id).all()
+    count = 0
+    for pr in records:
+        if pr.grading_id:
+            gr = db.get(GradingResult, pr.grading_id)
+            if gr:
+                db.delete(gr)
+        db.delete(pr)
+        count += 1
+    db.commit()
+    return count
 
 
 def wrong_questions(db: Session) -> list[Question]:

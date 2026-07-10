@@ -33,10 +33,12 @@ export default function QuestionBankPage() {
   const items = data?.items || [];
 
   const del = useMutation({
-    mutationFn: (id: string) => api.deleteQuestion(id),
+    mutationFn: ({ id, deleteRelated }: { id: string; deleteRelated: boolean }) =>
+      api.deleteQuestion(id, deleteRelated),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["questions"] });
       qc.invalidateQueries({ queryKey: ["decks"] });
+      qc.invalidateQueries({ queryKey: ["practiceRecords"] });
       setDetail(null);
     },
   });
@@ -327,7 +329,10 @@ export default function QuestionBankPage() {
             <div className="flex justify-between items-start mb-3">
               <h2 className="font-bold">题目详情</h2>
               <button
-                onClick={() => del.mutate(detail.id)}
+                onClick={() => {
+                  const withHistory = confirm("同时删除该题的历史刷题记录？\n\n确定 = 连同历史记录一起删\n取消 = 仅删除题目，保留历史记录");
+                  del.mutate({ id: detail.id, deleteRelated: withHistory });
+                }}
                 className="text-red-600 text-sm hover:underline"
               >
                 删除

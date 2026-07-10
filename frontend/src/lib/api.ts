@@ -73,8 +73,8 @@ export const api = {
     req<Question>("/questions", { method: "POST", body: JSON.stringify(data) }),
   updateQuestion: (id: string, data: Partial<Question>) =>
     req<Question>(`/questions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteQuestion: (id: string) =>
-    req<void>(`/questions/${id}`, { method: "DELETE" }),
+  deleteQuestion: (id: string, deleteRelated: boolean = false) =>
+    req<void>(`/questions/${id}${deleteRelated ? "?delete_related=true" : ""}`, { method: "DELETE" }),
   exportQuestions: () => req<{ questions: any[] }>(`/questions/export`),
   batchDelete: (ids: string[]) =>
     req<{ deleted: number }>(`/questions/batch-delete`, {
@@ -111,6 +111,8 @@ export const api = {
 
   listRecords: (question_id?: string) =>
     req<{ items: any[] }>(`/practice/records${qs({ question_id })}`),
+  deleteRecord: (record_id: string) =>
+    req<void>(`/practice/records/${record_id}`, { method: "DELETE" }),
   wrongQuestions: () => req<{ items: Question[] }>(`/practice/wrong-questions`),
 
   // ---- bookmarks ----

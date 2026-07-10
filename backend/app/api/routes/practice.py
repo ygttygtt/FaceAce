@@ -67,6 +67,9 @@ def list_records(
             question = db.get(Question, r.question_id)
             if question:
                 item["question"] = QuestionOut.model_validate(question).model_dump()
+            elif r.question_text:
+                # Question deleted but snapshot exists
+                item["question"] = {"question_text": r.question_text, "question_type": "", "difficulty": "", "deleted": True}
         enriched.append(item)
     return {"items": enriched}
 
@@ -78,6 +81,9 @@ def get_record_detail(record_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="记录不存在")
     grading = db.get(GradingResult, pr.grading_id) if pr.grading_id else None
     question = db.get(Question, pr.question_id) if pr.question_id else None
+    question_data = QuestionOut.model_validate(question).model_dump() if question else None
+    if not question_data and pr.question_text:
+        question_data = {"question_text": pr.question_text, "question_type": "", "difficulty": "", "deleted": True}
     detail = PracticeRecordDetailOut(
         id=pr.id,
         question_id=pr.question_id,
@@ -87,7 +93,7 @@ def get_record_detail(record_id: str, db: Session = Depends(get_db)):
         grading_id=pr.grading_id,
         created_at=pr.created_at,
         grading=GradingResultOut.model_validate(grading) if grading else None,
-        question=QuestionOut.model_validate(question).model_dump() if question else None,
+        question=question_data,
     )
     return detail.model_dump()
 
@@ -97,3 +103,10 @@ def wrong_questions(db: Session = Depends(get_db)):
     items = practice_service.wrong_questions(db)
     annotated = question_service.annotate_questions(db, items)
     return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
+
+
+@router.delete("/practice/records/{record_id}", status_code=204)
+def delete_record(record_id: str, db: Session = Depends(get_db)):
+    if not practice_service.delete_record(db, record_id):
+        raise HTTPException(status_code=404, detail="记录不存在")
+    return None

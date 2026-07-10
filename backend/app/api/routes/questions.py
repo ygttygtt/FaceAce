@@ -12,6 +12,7 @@ from app.schemas.question import (
     QuestionUpdate,
 )
 from app.services import question_service
+from app.services import practice_service as practice_svc
 
 router = APIRouter(tags=["questions"])
 
@@ -84,7 +85,9 @@ def update_question(qid: str, data: QuestionUpdate, db: Session = Depends(get_db
 
 
 @router.delete("/questions/{qid}", status_code=204)
-def delete_question(qid: str, db: Session = Depends(get_db)):
+def delete_question(qid: str, delete_related: bool = False, db: Session = Depends(get_db)):
+    if delete_related:
+        practice_svc.delete_records_by_question(db, qid)
     if not question_service.delete_question(db, qid):
         raise HTTPException(status_code=404, detail="题目不存在")
     return None

@@ -11,6 +11,7 @@ class PracticeRecord(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     question_id: Mapped[str] = mapped_column(String(32), ForeignKey("questions.id"), index=True)
+    question_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # snapshot
     user_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     revealed: Mapped[bool] = mapped_column(Boolean, default=False)
     duration_sec: Mapped[int] = mapped_column(Integer, default=0)

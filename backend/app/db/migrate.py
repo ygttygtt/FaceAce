@@ -70,3 +70,9 @@ def run_migrations(engine: Engine) -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE questions ADD COLUMN user_answer_override TEXT"))
         logger.info("migration: added questions.user_answer_override")
+
+    # question_text snapshot on practice_records
+    if _has_table(engine, "practice_records") and not _has_column(engine, "practice_records", "question_text"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE practice_records ADD COLUMN question_text TEXT"))
+        logger.info("migration: added practice_records.question_text")
