@@ -11,9 +11,12 @@ function difficultyColor(d: string): string {
 interface Props {
   question: Question;
   onRevealed?: () => void;
+  customAnswer?: string | null;
+  onEditAnswer?: () => void;
+  onOpenNote?: () => void;
 }
 
-export default function RevealCard({ question, onRevealed }: Props) {
+export default function RevealCard({ question, onRevealed, customAnswer, onEditAnswer, onOpenNote }: Props) {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -77,8 +80,24 @@ export default function RevealCard({ question, onRevealed }: Props) {
         ) : (
           <div className="space-y-4">
             <div>
-              <div className="text-xs text-gray-500 mb-1 font-medium">标准答案</div>
-              <MarkdownView>{question.standard_answer || "(本题无标准答案)"}</MarkdownView>
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-gray-500 mb-1 font-medium">
+                  {customAnswer ? "答案（已自定义）" : "标准答案"}
+                </div>
+                {onEditAnswer && (
+                  <button type="button" onClick={onEditAnswer}
+                    className="text-xs text-blue-600 hover:underline mb-1">
+                    {customAnswer ? "编辑" : "完善答案"}
+                  </button>
+                )}
+                {onOpenNote && (
+                  <button type="button" onClick={onOpenNote}
+                    className="text-xs text-gray-500 hover:underline mb-1">
+                    笔记
+                  </button>
+                )}
+              </div>
+              <MarkdownView>{customAnswer || question.standard_answer || "(本题无标准答案)"}</MarkdownView>
             </div>
             {question.explanation && (
               <div>
