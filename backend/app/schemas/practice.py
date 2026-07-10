@@ -42,3 +42,11 @@ class GradingResultOut(BaseModel):
     detailed_feedback: str
     improved_answer: Optional[str]
     created_at: datetime
+
+
+class GradeStreamChunk(BaseModel):
+    """SSE streaming chunk for grading."""
+    delta: Optional[str] = None
+    done: bool = False
+    result: Optional["GradingResultOut"] = None
+    error: Optional[str] = None

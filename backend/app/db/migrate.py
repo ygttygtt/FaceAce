@@ -33,3 +33,40 @@ def run_migrations(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE questions ADD COLUMN group_label VARCHAR(128)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_questions_group_id ON questions (group_id)"))
         logger.info("migration: added questions.group_id/group_seq/group_label")
+
+    # Bookmark table
+    if not _has_table(engine, "bookmarks"):
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE bookmarks (
+                    id VARCHAR(32) PRIMARY KEY,
+                    question_id VARCHAR(32) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (question_id) REFERENCES questions(id)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_bookmarks_question_id ON bookmarks (question_id)"))
+        logger.info("migration: created bookmarks table")
+
+    # Note table
+    if not _has_table(engine, "notes"):
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE notes (
+                    id VARCHAR(32) PRIMARY KEY,
+                    question_id VARCHAR(32) NOT NULL,
+                    content TEXT DEFAULT '',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (question_id) REFERENCES questions(id)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notes_question_id ON notes (question_id)"))
+        logger.info("migration: created notes table")
+
+    # user_answer_override column on questions
+    if _has_table(engine, "questions") and not _has_column(engine, "questions", "user_answer_override"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE questions ADD COLUMN user_answer_override TEXT"))
+        logger.info("migration: added questions.user_answer_override")

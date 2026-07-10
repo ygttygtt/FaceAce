@@ -32,3 +32,5 @@ class Question(Base, TimestampMixin):
     group_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     group_seq: Mapped[int | None] = mapped_column(Integer, nullable=True)
     group_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # user-edited answer override (null = use original standard_answer)
+    user_answer_override: Mapped[str | None] = mapped_column(Text, nullable=True)

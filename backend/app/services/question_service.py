@@ -3,6 +3,7 @@ import random
 
 from sqlalchemy.orm import Session
 
+from app.models.bookmark import Bookmark
 from app.models.practice import GradingResult
 from app.models.question import Question
 from app.schemas.question import QuestionCreate, QuestionUpdate
@@ -16,6 +17,7 @@ def list_questions(
     qtype: str | None = None,
     source_file: str | None = None,
     deck_id: str | None = None,
+    bookmarked_only: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list[Question], int]:
@@ -30,6 +32,12 @@ def list_questions(
         q = q.filter(Question.source_file == source_file)
     if deck_id:
         q = q.filter(Question.deck_id == deck_id)
+    if bookmarked_only:
+        bm_ids = [r[0] for r in db.query(Bookmark.question_id).all()]
+        if bm_ids:
+            q = q.filter(Question.id.in_(bm_ids))
+        else:
+            return [], 0
     items = q.order_by(Question.created_at.desc()).all()
     if tags:
         items = [it for it in items if any(t in (it.tags or []) for t in tags)]
@@ -71,6 +79,17 @@ def update_question(db: Session, question_id: str, data: QuestionUpdate) -> Ques
         return None
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(q, k, v)
+    db.commit()
+    db.refresh(q)
+    return q
+
+
+def update_answer_override(db: Session, question_id: str, answer: str | None):
+    """Set or clear the user's answer override for a question."""
+    q = db.get(Question, question_id)
+    if not q:
+        return None
+    q.user_answer_override = answer
     db.commit()
     db.refresh(q)
     return q

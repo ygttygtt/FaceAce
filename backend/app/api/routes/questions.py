@@ -1,5 +1,6 @@
 """Question bank routes."""
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -23,13 +24,14 @@ def list_questions(
     qtype: str | None = None,
     tags: str | None = None,
     deck_id: str | None = None,
+    bookmarked: bool | None = None,
     limit: int = Query(100, le=500),
     offset: int = 0,
 ):
     tag_list = [t for t in tags.split(",") if t] if tags else None
     items, total = question_service.list_questions(
         db, keyword=keyword, tags=tag_list, difficulty=difficulty, qtype=qtype,
-        deck_id=deck_id, limit=limit, offset=offset,
+        deck_id=deck_id, bookmarked_only=bookmarked, limit=limit, offset=offset,
     )
     return {
         "items": [QuestionOut.model_validate(i).model_dump() for i in items],
@@ -95,3 +97,15 @@ def batch_delete(req: BatchDeleteRequest, db: Session = Depends(get_db)):
 def batch_move(req: BatchMoveRequest, db: Session = Depends(get_db)):
     n = question_service.batch_move(db, req.ids, req.deck_id)
     return {"moved": n}
+
+
+class AnswerOverrideRequest(BaseModel):
+    answer: str | None = None
+
+
+@router.put("/questions/{qid}/answer-override")
+def update_answer_override(qid: str, data: AnswerOverrideRequest, db: Session = Depends(get_db)):
+    q = question_service.update_answer_override(db, qid, data.answer)
+    if not q:
+        raise HTTPException(status_code=404, detail="题目不存在")
+    return {"id": qid, "user_answer_override": data.answer}

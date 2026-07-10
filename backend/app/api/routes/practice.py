@@ -1,8 +1,13 @@
 """Practice (flashcard) and AI grading routes."""
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import build_llm_service, get_db
+from app.models.practice import GradingResult, PracticeRecord
+from app.models.question import Question
 from app.schemas.practice import (
     GradeRequest,
     GradingResultOut,
@@ -30,6 +35,19 @@ async def grade_answer(req: GradeRequest, db: Session = Depends(get_db)):
     return GradingResultOut.model_validate(g).model_dump()
 
 
+@router.post("/practice/grade/stream")
+async def grade_answer_stream(req: GradeRequest, db: Session = Depends(get_db)):
+    llm = build_llm_service(db)
+
+    async def event_stream():
+        async for chunk in practice_service.grade_answer_stream(
+            db, llm, req.question_id, req.user_answer, req.practice_record_id
+        ):
+            yield f"data: {chunk}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 @router.get("/practice/records")
 def list_records(
     db: Session = Depends(get_db),
@@ -37,7 +55,39 @@ def list_records(
     limit: int = 50,
 ):
     items = practice_service.list_records(db, question_id, limit)
-    return {"items": [PracticeRecordOut.model_validate(r).model_dump() for r in items]}
+    enriched = []
+    for r in items:
+        item = PracticeRecordOut.model_validate(r).model_dump()
+        if r.grading_id:
+            grading = db.get(GradingResult, r.grading_id)
+            if grading:
+                item["grading"] = GradingResultOut.model_validate(grading).model_dump()
+        if r.question_id:
+            question = db.get(Question, r.question_id)
+            if question:
+                item["question"] = QuestionOut.model_validate(question).model_dump()
+        enriched.append(item)
+    return {"items": enriched}
+
+
+@router.get("/practice/records/{record_id}/detail")
+def get_record_detail(record_id: str, db: Session = Depends(get_db)):
+    pr = db.get(PracticeRecord, record_id)
+    if not pr:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    grading = db.get(GradingResult, pr.grading_id) if pr.grading_id else None
+    question = db.get(Question, pr.question_id) if pr.question_id else None
+    return {
+        "id": pr.id,
+        "question_id": pr.question_id,
+        "user_answer": pr.user_answer,
+        "revealed": pr.revealed,
+        "duration_sec": pr.duration_sec,
+        "grading_id": pr.grading_id,
+        "created_at": pr.created_at.isoformat() if pr.created_at else None,
+        "grading": GradingResultOut.model_validate(grading).model_dump() if grading else None,
+        "question": QuestionOut.model_validate(question).model_dump() if question else None,
+    }
 
 
 @router.get("/practice/wrong-questions")

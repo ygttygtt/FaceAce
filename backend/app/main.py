@@ -15,10 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.routes import bookmarks as bookmark_routes
 from app.api.routes import config as config_routes
 from app.api.routes import decks as decks_routes
 from app.api.routes import health as health_routes
 from app.api.routes import ingest as ingest_routes
+from app.api.routes import notes as note_routes
 from app.api.routes import practice as practice_routes
 from app.api.routes import questions as questions_routes
 from app.api.routes import simulation as simulation_routes
@@ -60,6 +62,8 @@ app.include_router(questions_routes.router, prefix="/api")
 app.include_router(practice_routes.router, prefix="/api")
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(ingest_routes.router, prefix="/api")
+app.include_router(bookmark_routes.router, prefix="/api")
+app.include_router(note_routes.router, prefix="/api")
 
 
 # ---- single-process SPA hosting (only when frontend is built) ----
@@ -68,6 +72,11 @@ if FRONTEND_DIST.exists():
     _assets = FRONTEND_DIST / "assets"
     if _assets.exists():
         app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    @app.get("/")
+    async def serve_root():
+        """Serve index.html for root path."""
+        return FileResponse(FRONTEND_DIST / "index.html")
 
     @app.get("/{full_path:path}")
     async def spa_fallback(full_path: str):

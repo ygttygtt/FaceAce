@@ -44,6 +44,7 @@ class QuestionUpdate(BaseModel):
     image_placeholders: Optional[list] = None
     review_status: Optional[str] = None
     deck_id: Optional[str] = None
+    user_answer_override: Optional[str] = None
 
 
 class QuestionOut(QuestionBase):
@@ -51,6 +52,9 @@ class QuestionOut(QuestionBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    is_bookmarked: bool = False
+    has_notes: bool = False
+    user_answer_override: Optional[str] = None
 
 
 class BatchDeleteRequest(BaseModel):
