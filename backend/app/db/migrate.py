@@ -76,3 +76,11 @@ def run_migrations(engine: Engine) -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE practice_records ADD COLUMN question_text TEXT"))
         logger.info("migration: added practice_records.question_text")
+
+    # Fix old invalid TTS voice values (OpenAI voice names that don't work with mimo)
+    if _has_table(engine, "user_config"):
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT tts_voice FROM user_config WHERE id=1")).first()
+            if result and result[0] and result[0] not in ("mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean", ""):
+                conn.execute(text("UPDATE user_config SET tts_voice='冰糖' WHERE id=1"))
+                logger.info("migration: reset tts_voice from '%s' to '冰糖'", result[0])

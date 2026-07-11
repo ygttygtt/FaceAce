@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["tts"])
 
 
+VALID_VOICES = {"mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean"}
+
+
 async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
     """Call mimo TTS via chat/completions with audio param, yield PCM16 bytes."""
     import httpx
@@ -23,6 +26,10 @@ async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
+    if voice not in VALID_VOICES:
+        logger.warning("TTS: invalid voice '%s', falling back to 冰糖", voice)
+        voice = "冰糖"
+
     payload = {
         "model": "mimo-v2.5-tts",
         "messages": [
@@ -31,7 +38,7 @@ async def _stream_tts(text: str, voice: str, base_url: str, api_key: str):
         ],
         "audio": {
             "format": "pcm16",
-            "voice": voice or "冰糖",
+            "voice": voice,
         },
         "stream": True,
     }
