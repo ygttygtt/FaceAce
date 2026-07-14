@@ -7,8 +7,15 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      (() => {
+        const isDark = localStorage.getItem("faceace-theme") === "dark";
+        document.documentElement.classList.toggle("dark", isDark);
+        document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').content = isDark ? "#0f172a" : "#ffffff";
+      })();
+    </script>
     <title>FaceAce · AI 面试助手</title>
   </head>
   <body>
