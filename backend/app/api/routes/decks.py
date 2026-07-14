@@ -48,12 +48,16 @@ def update_deck(did: str, data: DeckUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/decks/{did}", status_code=204)
-def delete_deck(did: str, db: Session = Depends(get_db)):
+def delete_deck(did: str, delete_questions: bool = False, db: Session = Depends(get_db)):
     d = db.get(Deck, did)
     if not d:
         raise HTTPException(status_code=404, detail="题库不存在")
-    # detach questions (keep them, just unassigned) rather than deleting
-    db.query(Question).filter(Question.deck_id == did).update({Question.deck_id: None})
+    if delete_questions:
+        # Delete all questions belonging to this deck
+        db.query(Question).filter(Question.deck_id == did).delete()
+    else:
+        # Detach questions (keep them, just unassigned) rather than deleting
+        db.query(Question).filter(Question.deck_id == did).update({Question.deck_id: None})
     db.delete(d)
     db.commit()
     return None

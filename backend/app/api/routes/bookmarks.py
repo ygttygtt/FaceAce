@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
+from app.models.bookmark import Bookmark
 from app.models.question import Question
 from app.schemas.bookmark import BookmarkCreate, BookmarkOut
 from app.schemas.question import QuestionOut
@@ -31,3 +32,13 @@ def list_bookmarks(db: Session = Depends(get_db)):
 @router.get("/bookmarks/check/{question_id}")
 def check_bookmark(question_id: str, db: Session = Depends(get_db)):
     return {"bookmarked": bookmark_service.is_bookmarked(db, question_id)}
+
+
+@router.delete("/bookmarks/{bid}", status_code=204)
+def delete_bookmark(bid: str, db: Session = Depends(get_db)):
+    bm = db.get(Bookmark, bid)
+    if not bm:
+        raise HTTPException(status_code=404, detail="收藏不存在")
+    db.delete(bm)
+    db.commit()
+    return None

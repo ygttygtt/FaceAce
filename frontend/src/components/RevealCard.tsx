@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MarkdownView from "./MarkdownView";
 import type { Question } from "../types";
+import { DIFFICULTY_LABELS, QUESTION_TYPE_LABELS, labelOf } from "../lib/labels";
 
 function difficultyColor(d: string): string {
   if (d === "easy") return "bg-green-100 text-green-700";
@@ -42,10 +43,10 @@ export default function RevealCard({ question, onRevealed, customAnswer, onEditA
     <div className="bg-white rounded-lg shadow p-6 space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-          {question.question_type}
+          {labelOf(QUESTION_TYPE_LABELS, question.question_type)}
         </span>
         <span className={`px-2 py-0.5 rounded ${difficultyColor(question.difficulty)}`}>
-          {question.difficulty}
+          {labelOf(DIFFICULTY_LABELS, question.difficulty)}
         </span>
         {question.tags?.map((t) => (
           <span key={t} className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">

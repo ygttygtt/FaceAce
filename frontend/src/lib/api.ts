@@ -17,8 +17,13 @@ import type {
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || "";
 
+export function apiUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${BASE}/api${normalized}`;
+}
+
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
     ...options,
   });
@@ -66,6 +71,7 @@ export const api = {
     tags?: string;
     difficulty?: string;
     deck_id?: string;
+    group_mode?: boolean;
   }) => req<{ items: Question[] }>(`/questions/draw${qs(params)}`),
 
   getQuestion: (id: string) => req<Question>(`/questions/${id}`),
@@ -73,8 +79,13 @@ export const api = {
     req<Question>("/questions", { method: "POST", body: JSON.stringify(data) }),
   updateQuestion: (id: string, data: Partial<Question>) =>
     req<Question>(`/questions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteQuestion: (id: string, deleteRelated: boolean = false) =>
-    req<void>(`/questions/${id}${deleteRelated ? "?delete_related=true" : ""}`, { method: "DELETE" }),
+  deleteQuestion: (id: string, opts: { deleteRelated?: boolean; deleteBookmarksNotes?: boolean } = {}) => {
+    const p = new URLSearchParams();
+    if (opts.deleteRelated) p.set("delete_related", "true");
+    if (opts.deleteBookmarksNotes) p.set("delete_bookmarks_notes", "true");
+    const qs = p.toString();
+    return req<void>(`/questions/${id}${qs ? "?" + qs : ""}`, { method: "DELETE" });
+  },
   exportQuestions: () => req<{ questions: any[] }>(`/questions/export`),
   batchDelete: (ids: string[]) =>
     req<{ deleted: number }>(`/questions/batch-delete`, {
@@ -93,7 +104,8 @@ export const api = {
     req<Deck>(`/decks`, { method: "POST", body: JSON.stringify(data) }),
   updateDeck: (id: string, data: Partial<Deck>) =>
     req<Deck>(`/decks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteDeck: (id: string) => req<void>(`/decks/${id}`, { method: "DELETE" }),
+  deleteDeck: (id: string, deleteQuestions: boolean = false) =>
+    req<void>(`/decks/${id}${deleteQuestions ? "?delete_questions=true" : ""}`, { method: "DELETE" }),
 
   // ---- practice ----
   createPracticeRecord: (data: {
@@ -129,6 +141,7 @@ export const api = {
   listBookmarks: () => req<{ items: Bookmark[] }>(`/bookmarks`),
   checkBookmark: (question_id: string) =>
     req<{ bookmarked: boolean }>(`/bookmarks/check/${question_id}`),
+  deleteBookmark: (id: string) => req<void>(`/bookmarks/${id}`, { method: "DELETE" }),
 
   // ---- notes ----
   getNote: (question_id: string) => req<Note | { content: string }>(`/notes/${question_id}`),
@@ -165,6 +178,7 @@ export const api = {
   finishSession: (id: string) =>
     req<SimulationReport>(`/simulation/sessions/${id}/finish`, { method: "POST" }),
   getReport: (id: string) => req<SimulationReport>(`/simulation/sessions/${id}/report`),
+  deleteSession: (id: string) => req<void>(`/simulation/sessions/${id}`, { method: "DELETE" }),
 
   // ---- ingest ----
   uploadFile: async (
@@ -178,7 +192,7 @@ export const api = {
     if (params.auto_approve) sp.set("auto_approve", "true");
     if (params.deck_id) sp.set("deck_id", params.deck_id);
     const s = sp.toString();
-    const res = await fetch(`${BASE}/api/ingest/upload${s ? `?${s}` : ""}`, {
+    const res = await fetch(apiUrl(`/ingest/upload${s ? `?${s}` : ""}`), {
       method: "POST",
       body: fd,
     });
@@ -220,6 +234,11 @@ export const api = {
   testProfile: (id: string) =>
     req<{ ok: boolean; message: string; reply: string }>(`/config/llm-profiles/${id}/test`, {
       method: "POST",
+    }),
+  discoverModels: (data: { base_url?: string; api_key?: string; profile_id?: string }) =>
+    req<{ ok: boolean; message: string; models: string[] }>(`/config/llm-models/discover`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
   listPrompts: () => req<{ items: PromptTemplate[] }>(`/config/prompts`),
   updatePrompt: (key: string, data: { content?: string; name?: string }) =>

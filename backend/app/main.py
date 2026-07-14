@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FaceAce 面试助手", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="FaceAce 面试助手", version="0.4.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

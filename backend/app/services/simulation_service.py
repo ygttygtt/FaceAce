@@ -46,16 +46,24 @@ def get_session_detail(db: Session, session_id: str) -> SimulationSession | None
 
 
 def _build_messages(db: Session, session: SimulationSession) -> list[dict]:
-    persona = session.interviewer_persona or get_prompt_content(db, "interviewer_persona")
+    persona = get_prompt_content(db, "interviewer_persona")
+    if session.interviewer_persona:
+        persona += f"\n【面试官风格补充】\n{session.interviewer_persona}"
     role_block = f"【候选人背景】\n{session.role_context}" if session.role_context else ""
     pool_block = ""
     if session.question_pool_ids:
         qs = db.query(Question).filter(Question.id.in_(session.question_pool_ids)).all()
         if qs:
-            summary = "; ".join(q.question_text[:60] for q in qs)
+            by_id = {q.id: q for q in qs}
+            ordered = [by_id[qid] for qid in session.question_pool_ids if qid in by_id][:20]
+            summary = "\n".join(
+                f"- {q.question_text[:100]}"
+                + (f"；评估要点：{'、'.join((q.answer_points or [])[:3])}" if q.answer_points else "")
+                for q in ordered
+            )
             pool_block = (
                 f"【本次面试建议覆盖的题目方向】\n{summary}\n"
-                "(可自然展开,确保覆盖核心知识点)"
+                "请按面试节奏自然展开，并根据评估要点追问；不要向候选人直接透露评估要点。"
             )
     system = render_template(
         persona, {"role_context_block": role_block, "question_pool_block": pool_block}
@@ -133,6 +141,43 @@ async def opening_message_stream(
     db.add(
         SimulationMessage(
             id=new_id(), session_id=session_id, role="interviewer", content=full, seq=1
+        )
+    )
+    db.commit()
+
+
+async def retry_interviewer_stream(
+    db: Session, llm: LLMService, session_id: str
+) -> AsyncGenerator[str, None]:
+    """Regenerate an interviewer reply after a failed stream without duplicating the candidate answer."""
+    session = db.get(SimulationSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    if session.status != "active":
+        raise HTTPException(status_code=400, detail="会话已结束,无法继续对话")
+
+    last = (
+        db.query(SimulationMessage)
+        .filter(SimulationMessage.session_id == session_id)
+        .order_by(SimulationMessage.seq.desc())
+        .first()
+    )
+    if not last or last.role != "candidate":
+        raise HTTPException(status_code=400, detail="没有可重试的候选人回答")
+
+    collected: list[str] = []
+    async for delta in llm.chat_stream(_build_messages(db, session)):
+        collected.append(delta)
+        yield delta
+
+    full = "".join(collected)
+    db.add(
+        SimulationMessage(
+            id=new_id(),
+            session_id=session_id,
+            role="interviewer",
+            content=full,
+            seq=last.seq + 1,
         )
     )
     db.commit()

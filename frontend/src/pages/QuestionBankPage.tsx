@@ -37,12 +37,13 @@ export default function QuestionBankPage() {
   const items = data?.items || [];
 
   const del = useMutation({
-    mutationFn: ({ id, deleteRelated }: { id: string; deleteRelated: boolean }) =>
-      api.deleteQuestion(id, deleteRelated),
+    mutationFn: ({ id, deleteRelated, deleteBookmarksNotes }: { id: string; deleteRelated: boolean; deleteBookmarksNotes: boolean }) =>
+      api.deleteQuestion(id, { deleteRelated, deleteBookmarksNotes }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["questions"] });
       qc.invalidateQueries({ queryKey: ["decks"] });
       qc.invalidateQueries({ queryKey: ["practiceRecords"] });
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
       setDetail(null);
     },
   });
@@ -72,7 +73,8 @@ export default function QuestionBankPage() {
     },
   });
   const deleteDeck = useMutation({
-    mutationFn: (id: string) => api.deleteDeck(id),
+    mutationFn: ({ id, deleteQuestions }: { id: string; deleteQuestions: boolean }) =>
+      api.deleteDeck(id, deleteQuestions),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["decks"] });
       qc.invalidateQueries({ queryKey: ["questions"] });
@@ -180,8 +182,12 @@ export default function QuestionBankPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`删除题库「${d.name}」？题目不会删除，只是取消分组。`)) {
-                    deleteDeck.mutate(d.id);
+                  const msg = `删除题库「${d.name}」？\n\n` +
+                    `· 确定 = 仅删除题库，题目保留到「全部题目」\n` +
+                    `· 取消 = 不删除，关闭此菜单`;
+                  if (confirm(msg)) {
+                    const delQst = confirm(`是否同时删除该题库下的所有题目？\n\n确定 = 连同题目一起删\n取消 = 题目保留`);
+                    deleteDeck.mutate({ id: d.id, deleteQuestions: delQst });
                   }
                 }}
                 className="w-5 h-5 flex items-center justify-center text-xs text-gray-400 hover:text-white hover:bg-red-400 rounded transition-all opacity-0 group-hover:opacity-100"
@@ -350,8 +356,17 @@ export default function QuestionBankPage() {
               <h2 className="font-bold">题目详情</h2>
               <button
                 onClick={() => {
-                  const withHistory = confirm("同时删除该题的历史刷题记录？\n\n确定 = 连同历史记录一起删\n取消 = 仅删除题目，保留历史记录");
-                  del.mutate({ id: detail.id, deleteRelated: withHistory });
+                  // 第一步：确认是否删除
+                  if (!confirm("确定删除此题目？此操作不可撤销。")) return;
+                  // 第二步：历史记录怎么处理
+                  const withHistory = confirm(
+                    "是否同时删除该题的历史刷题记录？\n\n确定 = 连同历史记录一起删\n取消 = 仅删除题目，保留历史记录"
+                  );
+                  // 第三步：收藏和笔记怎么处理
+                  const withBookmarks = confirm(
+                    "是否同时删除该题的收藏记录和笔记？\n\n确定 = 收藏和笔记一并删除\n取消 = 保留收藏和笔记"
+                  );
+                  del.mutate({ id: detail.id, deleteRelated: withHistory, deleteBookmarksNotes: withBookmarks });
                 }}
                 className="text-red-600 text-sm hover:underline"
               >

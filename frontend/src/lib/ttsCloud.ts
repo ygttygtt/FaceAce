@@ -1,4 +1,5 @@
 /** Cloud TTS player using Web Audio API to play PCM16 stream from mimo TTS API. */
+import { apiUrl } from "./api";
 
 let audioCtx: AudioContext | null = null;
 let scheduledTime = 0;
@@ -31,7 +32,7 @@ function pcm16ToFloat32(bytes: Uint8Array): Float32Array {
 }
 
 export async function playCloudTts(text: string, voice: string = "冰糖"): Promise<void> {
-  const res = await fetch(`/api/tts/speak`, {
+  const res = await fetch(apiUrl("/tts/speak"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice }),

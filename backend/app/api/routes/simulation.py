@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import build_llm_service, get_db
-from app.models.simulation import SimulationMessage
+from app.models.simulation import SimulationMessage, SimulationReport, SimulationSession
 from app.schemas.simulation import (
     SendMessageRequest,
     SimulationMessageOut,
@@ -88,11 +88,41 @@ async def send_message(
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+@router.post("/simulation/sessions/{sid}/retry")
+async def retry_interviewer(sid: str, db: Session = Depends(get_db)):
+    llm = build_llm_service(db)
+
+    async def gen():
+        try:
+            async for delta in simulation_service.retry_interviewer_stream(db, llm, sid):
+                yield _sse({"delta": delta})
+            yield _sse({"done": True})
+        except HTTPException as e:
+            yield _sse({"error": str(e.detail)})
+        except Exception as e:  # noqa: BLE001
+            yield _sse({"error": str(e)[:300]})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
 @router.post("/simulation/sessions/{sid}/finish")
 async def finish_session(sid: str, db: Session = Depends(get_db)):
     llm = build_llm_service(db)
     rep = await report_service.generate_report(db, llm, sid)
     return SimulationReportOut.model_validate(rep).model_dump()
+
+
+@router.delete("/simulation/sessions/{sid}", status_code=204)
+def delete_session(sid: str, db: Session = Depends(get_db)):
+    s = db.get(SimulationSession, sid)
+    if not s:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    # cascade delete messages and report manually
+    db.query(SimulationMessage).filter(SimulationMessage.session_id == sid).delete()
+    db.query(SimulationReport).filter(SimulationReport.session_id == sid).delete()
+    db.delete(s)
+    db.commit()
+    return None
 
 
 @router.get("/simulation/sessions/{sid}/report")

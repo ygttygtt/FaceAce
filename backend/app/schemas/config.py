@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LLMProfileBase(BaseModel):
@@ -87,3 +87,15 @@ class TestConnectionResult(BaseModel):
     ok: bool
     message: str
     reply: str = ""
+
+
+class LLMModelDiscoverRequest(BaseModel):
+    base_url: str = ""
+    api_key: str = ""
+    profile_id: Optional[str] = None
+
+
+class LLMModelDiscoverResult(BaseModel):
+    ok: bool
+    message: str
+    models: list[str] = Field(default_factory=list)

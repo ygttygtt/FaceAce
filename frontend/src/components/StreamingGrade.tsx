@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import MarkdownView from "./MarkdownView";
 import type { GradingResult } from "../types";
+import { VERDICT_LABELS, labelOf } from "../lib/labels";
 
 const VERDICT_COLOR: Record<string, string> = {
   correct: "bg-green-100 text-green-700",
@@ -44,7 +45,7 @@ export default function StreamingGrade({ streamingText, result, error, done }: P
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded text-sm font-bold ${VERDICT_COLOR[result.verdict] || ""}`}>
-              {result.verdict}
+              {labelOf(VERDICT_LABELS, result.verdict)}
             </span>
             <span className="text-lg font-bold">{result.score} 分</span>
           </div>

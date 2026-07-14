@@ -23,7 +23,7 @@ export default function ReportPage() {
     );
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">面试报告</h1>
         <Link to="/simulation" className="text-sm text-blue-600 hover:underline">
@@ -44,7 +44,7 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div className="bg-white border rounded p-4">
           <div className="text-sm font-medium text-green-700 mb-2">优点</div>
           <ul className="list-disc pl-5 text-sm space-y-1">

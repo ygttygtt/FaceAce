@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import MarkdownView from "../components/MarkdownView";
 import type { PracticeRecordDetail, Question } from "../types";
@@ -14,9 +14,12 @@ const VERDICT_COLOR: Record<string, string> = {
 type Tab = "records" | "wrong" | "bookmarks" | "simulations";
 
 export default function HistoryPage() {
-  const [tab, setTab] = useState<Tab>("records");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as Tab) || "records";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bookmarkDetail, setBookmarkDetail] = useState<Question | null>(null);
+  const [wrongDetail, setWrongDetail] = useState<Question | null>(null);
   const qc = useQueryClient();
 
   const { data: sessions } = useQuery({
@@ -49,6 +52,18 @@ export default function HistoryPage() {
       setSelected(new Set());
     },
   });
+  const deleteSession = useMutation({
+    mutationFn: (id: string) => api.deleteSession(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
+  const deleteBookmark = useMutation({
+    mutationFn: (id: string) => api.deleteBookmark(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+    },
+  });
 
   const toggle = (id: string) => {
     const s = new Set(selected);
@@ -68,11 +83,11 @@ export default function HistoryPage() {
   ];
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <h1 className="text-xl font-bold mb-4">历史记录</h1>
 
       {/* tab bar */}
-      <div className="flex gap-1 mb-4 border-b">
+      <div className="flex gap-1 mb-4 border-b overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -190,10 +205,10 @@ export default function HistoryPage() {
             <div className="text-gray-400 text-sm py-8 text-center">暂无错题</div>
           ) : (
             wrong?.items.map((q) => (
-              <Link
+              <div
                 key={q.id}
-                to="/practice"
-                className="block bg-white border rounded-lg p-3 text-sm hover:border-red-300 transition-colors"
+                onClick={() => setWrongDetail(q)}
+                className="bg-white border rounded-lg p-3 text-sm hover:border-red-300 transition-colors cursor-pointer"
               >
                 <div className="text-gray-900 truncate">{q.question_text}</div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
@@ -201,7 +216,7 @@ export default function HistoryPage() {
                   <span>{q.difficulty}</span>
                   {q.tags?.slice(0, 3).map((t) => <span key={t} className="text-blue-600">#{t}</span>)}
                 </div>
-              </Link>
+              </div>
             ))
           )}
         </div>
@@ -215,22 +230,41 @@ export default function HistoryPage() {
             <div className="space-y-2">
               {bookmarks?.items.map((b) => {
                 const q = (b as any).question;
+                const deleted = !q;
                 return (
                   <div
                     key={b.id}
-                    className="bg-white border rounded-lg p-3 text-sm hover:border-yellow-300 transition-colors cursor-pointer"
+                    className={`bg-white border rounded-lg p-3 text-sm group ${
+                      deleted ? "border-red-200" : "hover:border-yellow-300 cursor-pointer"
+                    } ${q ? "cursor-pointer" : ""}`}
                     onClick={() => q && setBookmarkDetail(q)}
                   >
-                    <div className="font-medium truncate">
-                      {q?.question_text || `题目 ${b.question_id}（已删除）`}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                      {q?.difficulty && <span>{q.difficulty}</span>}
-                      {q?.question_type && <span>{q.question_type}</span>}
-                      {q?.tags?.slice(0, 3).map((t: string) => (
-                        <span key={t} className="text-blue-600">#{t}</span>
-                      ))}
-                      <span className="text-gray-400">收藏于 {new Date(b.created_at).toLocaleString()}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {q?.question_text || `题目 ${b.question_id.slice(0, 8)}…（已删除）`}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
+                          {q?.difficulty && <span>{q.difficulty}</span>}
+                          {q?.question_type && <span>{q.question_type}</span>}
+                          {q?.tags?.slice(0, 3).map((t: string) => (
+                            <span key={t} className="text-blue-600">#{t}</span>
+                          ))}
+                          <span className="text-gray-400">收藏于 {new Date(b.created_at).toLocaleString()}</span>
+                          {deleted && <span className="text-red-400">失效</span>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(deleted ? "删除这条已失效的收藏记录？" : "取消收藏该题？")) {
+                            deleteBookmark.mutate(b.id);
+                          }
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 hover:underline opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      >
+                        删除
+                      </button>
                     </div>
                   </div>
                 );
@@ -246,16 +280,29 @@ export default function HistoryPage() {
             <div className="text-gray-400 text-sm py-8 text-center">暂无仿真面试记录</div>
           ) : (
             sessions?.items.map((s) => (
-              <div key={s.id} className="bg-white border rounded-lg p-3 flex justify-between items-center">
+              <div key={s.id} className="bg-white border rounded-lg p-3 flex justify-between items-center group">
                 <div>
                   <div className="font-medium text-sm">{s.title}</div>
-                  <div className="text-xs text-gray-400">{new Date(s.created_at).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">
+                    {new Date(s.created_at).toLocaleString()} · {s.status === "finished" ? "已结束" : "进行中"}
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   {s.status === "finished" && (
                     <Link to={`/simulation/${s.id}/report`} className="text-xs text-blue-600 hover:underline">查看报告</Link>
                   )}
                   <Link to={`/simulation/${s.id}`} className="text-xs text-gray-600 hover:underline">打开</Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (confirm(`删除「${s.title}」及其所有对话记录和报告？此操作不可撤销。`)) {
+                        deleteSession.mutate(s.id);
+                      }
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700 hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    删除
+                  </button>
                 </div>
               </div>
             ))
@@ -301,6 +348,87 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      {/* wrong question detail modal */}
+      {wrongDetail && (
+        <WrongQuestionDetail
+          question={wrongDetail}
+          onClose={() => setWrongDetail(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function WrongQuestionDetail({ question, onClose }: { question: Question; onClose: () => void }) {
+  const { data: records } = useQuery({
+    queryKey: ["wrongRecords", question.id],
+    queryFn: () => api.listRecords(question.id),
+  });
+  const items = records?.items || [];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start mb-3">
+          <h2 className="font-bold">错题详情</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+        </div>
+        <div className="text-gray-900 mb-3 whitespace-pre-wrap">{question.question_text}</div>
+        {question.standard_answer && (
+          <div className="mb-3">
+            <div className="text-xs text-gray-500 mb-1">标准答案</div>
+            <MarkdownView>{question.standard_answer}</MarkdownView>
+          </div>
+        )}
+        {question.explanation && (
+          <div className="mb-3">
+            <div className="text-xs text-gray-500 mb-1">解析</div>
+            <MarkdownView>{question.explanation}</MarkdownView>
+          </div>
+        )}
+        {question.answer_points?.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-gray-500 mb-1">评分要点</div>
+            <ul className="list-disc pl-5 text-sm">
+              {question.answer_points.map((p, i) => (<li key={i}>{p}</li>))}
+            </ul>
+          </div>
+        )}
+
+        <div className="border-t pt-3">
+          <div className="text-sm font-medium text-gray-700 mb-2">
+            历史刷题记录 ({items.length} 次)
+          </div>
+          {items.length === 0 ? (
+            <div className="text-gray-400 text-sm">暂无刷题记录</div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {items.map((r: any) => (
+                <Link
+                  key={r.id}
+                  to={`/practice/record/${r.id}`}
+                  onClick={onClose}
+                  className="block border rounded p-2 text-xs hover:bg-gray-50"
+                >
+                  <div className="flex justify-between text-gray-500">
+                    <span>{new Date(r.created_at).toLocaleString()}</span>
+                    {r.grading && (
+                      <span className={VERDICT_COLOR[r.grading.verdict] || ""}>
+                        {r.grading.verdict} · {r.grading.score}分
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-gray-600 mt-1 truncate">答: {r.user_answer}</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

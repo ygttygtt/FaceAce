@@ -110,6 +110,8 @@ def update_review_item(
     j = db.get(IngestJob, jid)
     if not j:
         raise HTTPException(status_code=404, detail="导入任务不存在")
+    if j.status != "pending_review":
+        raise HTTPException(status_code=400, detail="只有待审核任务可以编辑")
     items = _load_normalized(jid)
     if index < 0 or index >= len(items):
         raise HTTPException(status_code=404, detail="题目索引不存在")
@@ -130,16 +132,24 @@ def approve(jid: str, req: ApproveRequest, db: Session = Depends(get_db)):
     if not items:
         raise HTTPException(status_code=400, detail="无归一化结果可入库")
     if req.auto_approve_all:
-        selected = items
+        selected_indices = set(range(len(items)))
     else:
-        sel = set(req.indices)
-        selected = [items[i] for i in range(len(items)) if i in sel]
+        selected_indices = {i for i in req.indices if 0 <= i < len(items)}
+    if not selected_indices:
+        raise HTTPException(status_code=400, detail="请至少选择一道题")
+
+    selected = [items[i] for i in range(len(items)) if i in selected_indices]
+    remaining = [items[i] for i in range(len(items)) if i not in selected_indices]
 
     for it in selected:
         db.add(Question(**_question_dict_from_normalized(it, j.file_name, req.deck_id)))
-    j.status = "done"
+    normalized_file(jid).write_text(
+        json.dumps(remaining, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    j.question_count = len(remaining)
+    j.status = "pending_review" if remaining else "done"
     db.commit()
-    return {"approved": len(selected), "status": j.status}
+    return {"approved": len(selected), "remaining": len(remaining), "status": j.status}
 
 
 @router.post("/ingest/import-json")

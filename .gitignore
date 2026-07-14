@@ -10,6 +10,8 @@ venv/
 node_modules/
 dist/
 .vite/
+release/build/
+release/dist/
 
 # Backend runtime data
 backend/data/faceace.db

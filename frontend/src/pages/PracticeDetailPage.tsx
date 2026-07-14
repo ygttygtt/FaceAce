@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import MarkdownView from "../components/MarkdownView";
 import type { GradingResult } from "../types";
+import { VERDICT_LABELS, labelOf } from "../lib/labels";
 
 const VERDICT_COLOR: Record<string, string> = {
   correct: "bg-green-100 text-green-700",
@@ -58,7 +59,7 @@ export default function PracticeDetailPage() {
         <div className="bg-white border rounded-lg p-6 shadow-sm space-y-3">
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded text-sm font-bold ${VERDICT_COLOR[g.verdict] || ""}`}>
-              {g.verdict}
+              {labelOf(VERDICT_LABELS, g.verdict)}
             </span>
             <span className="text-2xl font-bold">{g.score} 分</span>
           </div>

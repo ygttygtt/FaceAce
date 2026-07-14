@@ -114,6 +114,13 @@ FaceAce 是一个**本地 Web 应用**，能将杂乱的面试题文档转化为
 - 面试官消息 TTS 朗读
 - 结构化报告（逐题反馈）
 
+### 使用体验
+
+- DeepSeek、美团龙猫、商汤日日新预设，默认使用 DeepSeek V4 Flash
+- 自动检测 API Key / Base URL，并获取可用模型供下拉选择
+- 界面自动跟随系统浅色或深色模式
+- Windows 便携发行版，解压后双击 `FaceAce.exe` 即可启动
+
 ---
 
 ## 技术栈
@@ -144,14 +151,19 @@ FaceAce 是一个**本地 Web 应用**，能将杂乱的面试题文档转化为
 
 ### 安装
 
+**Windows 便携版（推荐）：**
+
+从 Releases 下载 `FaceAce-v*-win64.zip`，完整解压后双击 `FaceAce.exe`。无需安装 Python 或 Node.js，数据保存在程序目录的 `data/` 文件夹。
+
+**源码开发：**
+
 ```bash
 # 克隆仓库
 git clone https://github.com/ygttygtt/FaceAce.git
 cd FaceAce
 
-# Windows 一键启动
-dev.bat        # 开发模式（热重载）
-start.bat      # 生产模式（单进程）
+# Windows 一键启动开发环境
+dev.bat
 ```
 
 ### 手动安装
@@ -282,7 +294,7 @@ FaceAce/
 | **LLM 适配器模式** | 与外部 LLM 的唯一接触点。所有支持 OpenAI 协议的供应商（DeepSeek、OpenAI、通义、Ollama）统一处理。 |
 | **三级结构化输出** | `json_schema` -> `json_object` -> 正则提取。每级用 Pydantic 验证。跨供应商优雅降级。 |
 | **Prompt 模板系统** | 内置模板在 `default_prompts.py`，用户可在 DB 中编辑，前端设置页修改。使用 `{{var}}` 占位符。 |
-| **单进程部署** | 当 `frontend/dist` 存在时，FastAPI 直接托管构建好的 SPA。无需单独的 Web 服务器。 |
+| **前后端严格分离** | 开发时使用 Vite，发行版由独立启动器运行静态前端服务和纯 API 后端。 |
 | **UUID4 Hex ID** | 所有实体 ID 使用 `uuid.uuid4().hex`（32 位 hex）。无自增，无冲突。 |
 | **自动迁移** | `db/migrate.py` 在启动时补丁缺失列。简单模式变更无需 Alembic。 |
 
@@ -295,7 +307,7 @@ FaceAce/
 DATABASE_URL=sqlite:///./data/faceace.db
 LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_API_KEY=your_api_key_here
-LLM_MODEL=deepseek-chat
+LLM_MODEL=deepseek-v4-flash
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
@@ -312,6 +324,15 @@ VITE_API_BASE=           # 留空表示同源
 - **TTS**：需要系统中文语音引擎（Windows：设置 > 语音 安装 Huihui/Yaoyao）
 - **PDF 支持**：仅支持文字 PDF（不支持扫描件 OCR）
 - **数据存储**：SQLite 位于 `backend/data/faceace.db`，导入暂存于 `backend/data/ingest/`
+- **发行版数据**：便携版的数据位于解压目录的 `data/`，复制该目录即可备份
+
+### 构建 Windows 便携版
+
+```powershell
+powershell -ExecutionPolicy Bypass -File release/build_release.ps1
+```
+
+产物位于 `release/dist/`，包含可直接运行的目录和 ZIP 压缩包。
 
 ---
 

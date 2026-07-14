@@ -49,9 +49,12 @@ def draw_questions(
     tags: str | None = None,
     difficulty: str | None = None,
     deck_id: str | None = None,
+    group_mode: bool = True,
 ):
     tag_list = [t for t in tags.split(",") if t] if tags else None
-    items = question_service.draw_questions(db, mode, limit, tag_list, difficulty, deck_id)
+    items = question_service.draw_questions(
+        db, mode, limit, tag_list, difficulty, deck_id, group_mode
+    )
     annotated = question_service.annotate_questions(db, items)
     return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
 
@@ -85,9 +88,16 @@ def update_question(qid: str, data: QuestionUpdate, db: Session = Depends(get_db
 
 
 @router.delete("/questions/{qid}", status_code=204)
-def delete_question(qid: str, delete_related: bool = False, db: Session = Depends(get_db)):
+def delete_question(
+    qid: str,
+    delete_related: bool = False,
+    delete_bookmarks_notes: bool = False,
+    db: Session = Depends(get_db),
+):
     if delete_related:
         practice_svc.delete_records_by_question(db, qid)
+    if delete_bookmarks_notes:
+        question_service.delete_bookmarks_and_notes(db, qid)
     if not question_service.delete_question(db, qid):
         raise HTTPException(status_code=404, detail="题目不存在")
     return None

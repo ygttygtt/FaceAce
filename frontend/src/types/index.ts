@@ -17,6 +17,11 @@ export interface Question {
   review_status: string;
   user_answer_override?: string | null;
   deck_id: string | null;
+  group_id?: string | null;
+  group_seq?: number | null;
+  group_label?: string | null;
+  is_bookmarked?: boolean;
+  has_notes?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -141,6 +146,9 @@ export interface NormalizedQuestion {
   explanation: string | null;
   code_template: string | null;
   source_raw_index: number;
+  group_id?: string | null;
+  group_seq?: number | null;
+  group_label?: string | null;
 }
 
 export interface IngestJobDetail extends IngestJob {

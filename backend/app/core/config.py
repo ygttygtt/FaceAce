@@ -1,12 +1,13 @@
 """Application configuration loaded from .env via pydantic-settings."""
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/  (parent of app/)
 BACKEND_DIR: Path = Path(__file__).resolve().parent.parent.parent
-# backend/data/
-DATA_DIR: Path = BACKEND_DIR / "data"
+# backend/data/ in development, or a launcher-provided portable data directory.
+DATA_DIR: Path = Path(os.environ.get("FACEACE_DATA_DIR", BACKEND_DIR / "data")).resolve()
 INGEST_DIR: Path = DATA_DIR / "ingest"
 
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     # ---- Default LLM profile (seeded on first start) ----
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_api_key: str = ""
-    llm_model: str = "deepseek-chat"
+    llm_model: str = "deepseek-v4-flash"
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2048
 

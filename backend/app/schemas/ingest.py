@@ -36,6 +36,9 @@ class ReviewItemUpdate(BaseModel):
     explanation: Optional[str] = None
     code_template: Optional[str] = None
     source_raw_index: Optional[int] = None
+    group_id: Optional[str] = None
+    group_seq: Optional[int] = None
+    group_label: Optional[str] = None
 
 
 class ApproveRequest(BaseModel):

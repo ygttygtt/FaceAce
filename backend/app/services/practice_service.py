@@ -1,8 +1,11 @@
 """Practice (flashcard) records and AI grading service."""
 import json
+import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 
 from app.core.ids import new_id
@@ -122,8 +125,14 @@ async def grade_answer_stream(
 
     result = _parse_and_validate(full_text, GradingResultLLM)
     if result is None:
-        yield json.dumps({"error": "AI 批改结果解析失败,请重试", "done": True}, ensure_ascii=False)
-        return
+        # Fallback: re-call with structured output (json_schema → json_object degradation + retry)
+        logger.warning("Stream grade parse failed, falling back to structured(). raw head: %s", full_text[:300])
+        result = await llm.structured(
+            [{"role": "user", "content": prompt}], GradingResultLLM, temperature=0.0
+        )
+        if result is None:
+            yield json.dumps({"error": "AI 批改结果解析失败,请重试", "done": True}, ensure_ascii=False)
+            return
 
     g = GradingResult(
         id=new_id(),
@@ -205,13 +214,25 @@ def batch_delete_records(db: Session, record_ids: list[str]) -> int:
 
 
 def wrong_questions(db: Session) -> list[Question]:
-    wrong_ids = [
-        r[0]
-        for r in db.query(GradingResult.question_id)
-        .filter(GradingResult.verdict != "correct")
-        .distinct()
-        .all()
-    ]
+    wrong_ids = latest_wrong_question_ids(db)
     if not wrong_ids:
         return []
     return db.query(Question).filter(Question.id.in_(wrong_ids)).all()
+
+
+def latest_wrong_question_ids(db: Session) -> list[str]:
+    """Return questions whose most recent grading is not correct.
+
+    A question graduates from the wrong-question set as soon as the latest
+    attempt is correct. Older failures remain in history but no longer keep the
+    question permanently marked as wrong.
+    """
+    rows = (
+        db.query(GradingResult.question_id, GradingResult.verdict)
+        .order_by(GradingResult.created_at.desc(), GradingResult.id.desc())
+        .all()
+    )
+    latest: dict[str, str] = {}
+    for question_id, verdict in rows:
+        latest.setdefault(question_id, verdict)
+    return [question_id for question_id, verdict in latest.items() if verdict != "correct"]

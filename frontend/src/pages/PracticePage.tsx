@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { streamSSE } from "../lib/sse";
@@ -30,11 +30,20 @@ export default function PracticePage() {
   const [showAnswerEditor, setShowAnswerEditor] = useState(false);
   // group mode
   const [groupMode, setGroupMode] = useState(true);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
+  const questionStartedAt = useRef(Date.now());
 
   const { data: decksData } = useQuery({ queryKey: ["decks"], queryFn: api.listDecks });
   const decks = decksData?.items || [];
 
   const current = questions[idx];
+
+  useEffect(() => {
+    if (current?.id) {
+      questionStartedAt.current = Date.now();
+      setAnswerRevealed(false);
+    }
+  }, [current?.id]);
 
   const draw = async () => {
     setLoading(true);
@@ -50,22 +59,23 @@ export default function PracticePage() {
         difficulty: difficulty || undefined,
         tags: tags || undefined,
         deck_id: deckId || undefined,
+        group_mode: groupMode,
       });
       // group mode: sort by group_id then group_seq, flatten groups together
       if (groupMode) {
         const grouped = new Map<string, Question[]>();
         const ungrouped: Question[] = [];
         for (const q of r.items) {
-          if ((q as any).group_id) {
-            if (!grouped.has((q as any).group_id)) grouped.set((q as any).group_id, []);
-            grouped.get((q as any).group_id)!.push(q);
+          if (q.group_id) {
+            if (!grouped.has(q.group_id)) grouped.set(q.group_id, []);
+            grouped.get(q.group_id)!.push(q);
           } else {
             ungrouped.push(q);
           }
         }
         const sorted: Question[] = [];
         for (const g of grouped.values()) {
-          g.sort((a, b) => ((a as any).group_seq || 0) - ((b as any).group_seq || 0));
+          g.sort((a, b) => (a.group_seq || 0) - (b.group_seq || 0));
           sorted.push(...g);
         }
         sorted.push(...ungrouped);
@@ -92,8 +102,8 @@ export default function PracticePage() {
       const rec = await api.createPracticeRecord({
         question_id: current.id,
         user_answer: userAnswer,
-        revealed: true,
-        duration_sec: 0,
+        revealed: answerRevealed,
+        duration_sec: Math.max(1, Math.round((Date.now() - questionStartedAt.current) / 1000)),
       });
       await streamSSE(`/practice/grade/stream`, {
         question_id: current.id,
@@ -117,16 +127,17 @@ export default function PracticePage() {
     setStreamText("");
     setStreamError(null);
     setStreamDone(false);
+    setAnswerRevealed(false);
     setIdx((i) => i + 1);
   };
 
   // --- draw UI (no questions yet) ---
   if (questions.length === 0) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-2xl mx-auto">
         <h1 className="text-xl font-bold mb-4">刷题（盖答案）</h1>
         <div className="bg-white border rounded-lg p-4 space-y-3 shadow-sm">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="text-sm">
               抽题模式
               <select value={mode} onChange={(e) => setMode(e.target.value)}
@@ -141,9 +152,9 @@ export default function PracticePage() {
               <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}
                 className="block border rounded px-2 py-1.5 mt-1 w-full text-sm">
                 <option value="">不限</option>
-                <option value="easy">easy</option>
-                <option value="medium">medium</option>
-                <option value="hard">hard</option>
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
               </select>
             </label>
             <label className="text-sm">
@@ -192,22 +203,28 @@ export default function PracticePage() {
   const displayAnswer = current.user_answer_override ?? current.standard_answer;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       {/* progress bar */}
       <div className="flex justify-between items-center mb-3 text-sm text-gray-500">
         <span>第 {idx + 1} / {questions.length} 题</span>
         <div className="flex items-center gap-2">
-          {(current as any).group_label && (
+          {current.group_label && (
             <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
-              {(current as any).group_label}
+              {current.group_label}
             </span>
           )}
-          {groupMode && (current as any).group_id && (
+          {groupMode && current.group_id && (
             <span className="text-xs text-purple-600">
-              追问链 ({questions.filter(q => (q as any).group_id === (current as any).group_id).length} 题)
+              追问链 ({questions.filter(q => q.group_id === current.group_id).length} 题)
             </span>
           )}
-          <button onClick={() => setQuestions([])} className="hover:underline">结束本轮</button>
+          <button
+            onClick={() => setQuestions([])}
+            disabled={grading2}
+            className="hover:underline disabled:opacity-40"
+          >
+            结束本轮
+          </button>
         </div>
       </div>
 
@@ -221,6 +238,7 @@ export default function PracticePage() {
         key={current.id}
         question={current}
         customAnswer={displayAnswer}
+        onRevealed={() => setAnswerRevealed(true)}
         onEditAnswer={() => setShowAnswerEditor(true)}
         onOpenNote={() => setShowNote(true)}
       />
@@ -235,6 +253,11 @@ export default function PracticePage() {
           placeholder="输入你的答案，提交给 AI 面试官批改..."
           className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
         />
+        {answerRevealed && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            你已经查看过参考答案，本次记录会标记为“看答案后作答”。
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             onClick={doGrade}
@@ -243,7 +266,11 @@ export default function PracticePage() {
           >
             {grading2 ? "批改中..." : "提交 AI 批改"}
           </button>
-          <button onClick={next} className="px-4 py-1.5 border rounded-lg text-sm hover:bg-gray-50 transition-colors">
+          <button
+            onClick={next}
+            disabled={grading2}
+            className="px-4 py-1.5 border rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
             下一题
           </button>
         </div>

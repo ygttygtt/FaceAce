@@ -84,3 +84,15 @@ def run_migrations(engine: Engine) -> None:
             if result and result[0] and result[0] not in ("mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean", ""):
                 conn.execute(text("UPDATE user_config SET tts_voice='冰糖' WHERE id=1"))
                 logger.info("migration: reset tts_voice from '%s' to '冰糖'", result[0])
+
+    # Clean up orphaned bookmarks & notes (question was deleted but bookmark/note remained)
+    if _has_table(engine, "bookmarks") and _has_table(engine, "questions"):
+        with engine.begin() as conn:
+            n = conn.execute(text("DELETE FROM bookmarks WHERE question_id NOT IN (SELECT id FROM questions)")).rowcount
+            if n:
+                logger.info("migration: cleaned %d orphaned bookmarks", n)
+    if _has_table(engine, "notes") and _has_table(engine, "questions"):
+        with engine.begin() as conn:
+            n = conn.execute(text("DELETE FROM notes WHERE question_id NOT IN (SELECT id FROM questions)")).rowcount
+            if n:
+                logger.info("migration: cleaned %d orphaned notes", n)

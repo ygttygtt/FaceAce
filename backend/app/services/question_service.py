@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.models.bookmark import Bookmark
 from app.models.note import Note
-from app.models.practice import GradingResult
 from app.models.question import Question
 from app.schemas.question import QuestionCreate, QuestionUpdate
 
@@ -123,6 +122,13 @@ def delete_question(db: Session, question_id: str) -> bool:
     return True
 
 
+def delete_bookmarks_and_notes(db: Session, question_id: str) -> None:
+    """Remove all bookmarks and notes tied to a question (called before question deletion)."""
+    db.query(Bookmark).filter(Bookmark.question_id == question_id).delete()
+    db.query(Note).filter(Note.question_id == question_id).delete()
+    db.commit()
+
+
 def draw_questions(
     db: Session,
     mode: str = "random",
@@ -130,6 +136,7 @@ def draw_questions(
     tags: list[str] | None = None,
     difficulty: str | None = None,
     deck_id: str | None = None,
+    group_mode: bool = True,
 ) -> list[Question]:
     q = db.query(Question).filter(Question.review_status == "approved")
     if difficulty:
@@ -138,20 +145,24 @@ def draw_questions(
         q = q.filter(Question.deck_id == deck_id)
 
     if mode == "wrong":
-        wrong_ids = [
-            r[0]
-            for r in db.query(GradingResult.question_id)
-            .filter(GradingResult.verdict != "correct")
-            .distinct()
-            .all()
-        ]
+        from app.services.practice_service import latest_wrong_question_ids
+
+        wrong_ids = latest_wrong_question_ids(db)
         if not wrong_ids:
             return []
         items = q.filter(Question.id.in_(wrong_ids)).all()
     else:
         items = q.all()
-        if tags:
-            items = [it for it in items if any(t in (it.tags or []) for t in tags)]
+
+    if tags:
+        items = [it for it in items if any(t in (it.tags or []) for t in tags)]
+
+    if limit <= 0:
+        return []
+
+    if not group_mode:
+        random.shuffle(items)
+        return items[:limit]
 
     # Group-aware drawing: keep follow-up chains intact
     # 1) Group items by group_id
