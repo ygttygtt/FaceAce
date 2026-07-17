@@ -77,6 +77,27 @@ def run_migrations(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE practice_records ADD COLUMN question_text TEXT"))
         logger.info("migration: added practice_records.question_text")
 
+    # Import progress fields
+    if _has_table(engine, "ingest_jobs"):
+        ingest_columns = {
+            "progress_current": "INTEGER NOT NULL DEFAULT 0",
+            "progress_total": "INTEGER NOT NULL DEFAULT 0",
+            "stage_message": "VARCHAR(255) NOT NULL DEFAULT ''",
+            "warning_count": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, definition in ingest_columns.items():
+            if not _has_column(engine, "ingest_jobs", column):
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE ingest_jobs ADD COLUMN {column} {definition}"))
+                logger.info("migration: added ingest_jobs.%s", column)
+
+    if _has_table(engine, "prompt_templates"):
+        with engine.begin() as conn:
+            conn.execute(text(
+                "UPDATE prompt_templates SET name='文档题目识别' "
+                "WHERE key='normalize_questions' AND name='题目归一化'"
+            ))
+
     # Fix old invalid TTS voice values (OpenAI voice names that don't work with mimo)
     if _has_table(engine, "user_config"):
         with engine.begin() as conn:

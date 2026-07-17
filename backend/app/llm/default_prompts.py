@@ -126,7 +126,7 @@ overall_score 为 0-100 综合分。只输出 JSON。
 
 DEFAULT_PROMPTS: dict[str, dict] = {
     "normalize_questions": {
-        "name": "题目归一化",
+        "name": "文档题目识别",
         "content": NORMALIZE_QUESTIONS,
         "variables": ["raw_chunk"],
     },

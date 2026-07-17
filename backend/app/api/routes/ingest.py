@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import INGEST_DIR
 from app.core.ids import new_id
-from app.ingest.pipeline import normalized_file, process_job_background
+from app.ingest.pipeline import errors_file, normalized_file, process_job_background
 from app.models.ingest import IngestJob
 from app.models.question import Question
 from app.schemas.ingest import (
@@ -22,6 +22,7 @@ from app.schemas.ingest import (
 router = APIRouter(tags=["ingest"])
 
 SUPPORTED_EXT = {".md", ".txt", ".docx", ".pdf"}
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 def _question_dict_from_normalized(d: dict, file_name: str, deck_id: str | None = None) -> dict:
@@ -63,15 +64,26 @@ async def upload(
     auto_approve: bool = False,
     deck_id: str | None = None,
 ):
-    ext = Path(file.filename).suffix.lower()
+    safe_name = Path(file.filename or "upload").name
+    ext = Path(safe_name).suffix.lower()
     if ext not in SUPPORTED_EXT:
         raise HTTPException(status_code=400, detail=f"不支持的格式 {ext},支持 .md/.txt/.docx/.pdf")
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="文件超过 25 MB，请拆分后再导入")
+    if not content:
+        raise HTTPException(status_code=400, detail="文件内容为空")
 
-    job = IngestJob(id=new_id(), file_name=file.filename, file_path="", status="queued")
+    job = IngestJob(
+        id=new_id(),
+        file_name=safe_name,
+        file_path="",
+        status="queued",
+        stage_message="等待后台处理",
+    )
     save_dir = INGEST_DIR / job.id
     save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / file.filename
-    content = await file.read()
+    save_path = save_dir / safe_name
     save_path.write_bytes(content)
     job.file_path = str(save_path)
 
@@ -99,7 +111,43 @@ def get_job(jid: str, db: Session = Depends(get_db)):
     questions = _load_normalized(jid)
     detail = IngestJobDetail.model_validate(j).model_dump()
     detail["questions"] = questions
+    ef = errors_file(jid)
+    try:
+        detail["errors"] = json.loads(ef.read_text(encoding="utf-8")) if ef.exists() else []
+    except (OSError, json.JSONDecodeError):
+        detail["errors"] = [{"chunk_index": -1, "error": "错误详情文件损坏或无法读取"}]
     return detail
+
+
+@router.post("/ingest/jobs/{jid}/retry")
+def retry_job(
+    jid: str,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    job = db.get(IngestJob, jid)
+    if not job:
+        raise HTTPException(status_code=404, detail="导入任务不存在")
+    if job.status in {"queued", "extracting", "processing", "normalizing"}:
+        raise HTTPException(status_code=400, detail="任务仍在处理中")
+    if job.status == "done":
+        raise HTTPException(status_code=400, detail="已完成任务不能重试，避免重复入库")
+    if not Path(job.file_path).exists():
+        raise HTTPException(status_code=400, detail="原始文件已不存在，无法重试")
+
+    for artifact in (normalized_file(jid), errors_file(jid)):
+        if artifact.exists():
+            artifact.unlink()
+    job.status = "queued"
+    job.question_count = 0
+    job.error_message = None
+    job.progress_current = 0
+    job.progress_total = 0
+    job.warning_count = 0
+    job.stage_message = "等待重新处理"
+    db.commit()
+    background.add_task(process_job_background, jid, job.file_path, None, False, None)
+    return IngestJobOut.model_validate(job).model_dump()
 
 
 @router.patch("/ingest/jobs/{jid}/questions/{index}")
@@ -130,7 +178,7 @@ def approve(jid: str, req: ApproveRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="导入任务不存在")
     items = _load_normalized(jid)
     if not items:
-        raise HTTPException(status_code=400, detail="无归一化结果可入库")
+        raise HTTPException(status_code=400, detail="没有可入库的识别结果")
     if req.auto_approve_all:
         selected_indices = set(range(len(items)))
     else:
@@ -184,6 +232,8 @@ def delete_job(jid: str, db: Session = Depends(get_db)):
     j = db.get(IngestJob, jid)
     if not j:
         raise HTTPException(status_code=404, detail="导入任务不存在")
+    if j.status in {"queued", "extracting", "processing", "normalizing"}:
+        raise HTTPException(status_code=400, detail="任务仍在处理中，请完成后再删除")
     db.delete(j)
     db.commit()
     # also remove artifacts

@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.llm_output import NormalizedQuestion
 
@@ -14,6 +14,10 @@ class IngestJobOut(BaseModel):
     status: str
     question_count: int
     error_message: Optional[str]
+    progress_current: int = 0
+    progress_total: int = 0
+    stage_message: str = ""
+    warning_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -21,7 +25,8 @@ class IngestJobOut(BaseModel):
 class IngestJobDetail(IngestJobOut):
     file_path: str
     extracted_text: Optional[str]
-    questions: list[NormalizedQuestion] = []
+    questions: list[NormalizedQuestion] = Field(default_factory=list)
+    errors: list[dict] = Field(default_factory=list)
 
 
 class ReviewItemUpdate(BaseModel):

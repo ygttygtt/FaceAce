@@ -131,6 +131,10 @@ export interface IngestJob {
   status: string;
   question_count: number;
   error_message: string | null;
+  progress_current: number;
+  progress_total: number;
+  stage_message: string;
+  warning_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -155,6 +159,12 @@ export interface IngestJobDetail extends IngestJob {
   file_path: string;
   extracted_text: string | null;
   questions: NormalizedQuestion[];
+  errors: Array<{
+    chunk_index: number;
+    chunk_number?: number;
+    preview?: string;
+    error: string;
+  }>;
 }
 
 export interface Bookmark {

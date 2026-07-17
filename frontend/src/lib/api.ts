@@ -200,11 +200,21 @@ export const api = {
       method: "POST",
       body: fd,
     });
-    if (!res.ok) throw new Error((await res.text()) || "上传失败");
+    if (!res.ok) {
+      const raw = await res.text();
+      let detail = raw || "上传失败";
+      try {
+        const body = JSON.parse(raw);
+        detail = body.detail || detail;
+      } catch { /* keep raw response */ }
+      throw new Error(detail);
+    }
     return res.json();
   },
   listJobs: () => req<{ items: IngestJob[] }>(`/ingest/jobs`),
   getJob: (id: string) => req<IngestJobDetail>(`/ingest/jobs/${id}`),
+  retryJob: (id: string) =>
+    req<IngestJob>(`/ingest/jobs/${id}/retry`, { method: "POST" }),
   updateReviewItem: (jid: string, index: number, data: any) =>
     req<any>(`/ingest/jobs/${jid}/questions/${index}`, {
       method: "PATCH",

@@ -13,7 +13,11 @@ class IngestJob(Base, TimestampMixin):
     file_name: Mapped[str] = mapped_column(String(255))
     file_path: Mapped[str] = mapped_column(String(512))
     status: Mapped[str] = mapped_column(String(24), default="queued")
-    # queued | extracting | normalizing | pending_review | done | failed
+    # queued | extracting | processing | pending_review | done | failed
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     question_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    progress_current: Mapped[int] = mapped_column(Integer, default=0)
+    progress_total: Mapped[int] = mapped_column(Integer, default=0)
+    stage_message: Mapped[str] = mapped_column(String(255), default="")
+    warning_count: Mapped[int] = mapped_column(Integer, default=0)

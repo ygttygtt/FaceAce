@@ -15,7 +15,16 @@ def extract(file_path: str) -> ExtractedText:
     p = Path(file_path)
     ext = p.suffix.lower()
     if ext in (".md", ".txt"):
-        text = p.read_text(encoding="utf-8", errors="replace")
+        raw = p.read_bytes()
+        text = None
+        for encoding in ("utf-8-sig", "gb18030"):
+            try:
+                text = raw.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if text is None:
+            text = raw.decode("utf-8", errors="replace")
         return ExtractedText(p.name, [text], text)
     if ext == ".docx":
         return _extract_docx(p)
