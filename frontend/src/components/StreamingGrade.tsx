@@ -17,11 +17,11 @@ interface Props {
 }
 
 export default function StreamingGrade({ streamingText, result, error, done }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [streamingText, result]);
+    if (previewRef.current) previewRef.current.scrollTop = previewRef.current.scrollHeight;
+  }, [streamingText]);
 
   if (error) {
     return <div className="text-red-600 text-sm p-3 bg-red-50 rounded">{error}</div>;
@@ -35,8 +35,11 @@ export default function StreamingGrade({ streamingText, result, error, done }: P
             <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
             AI 正在批改...
           </div>
-          <div className="bg-gray-50 rounded p-3 text-sm max-h-60 overflow-auto">
-            <MarkdownView>{streamingText}</MarkdownView>
+          <div
+            ref={previewRef}
+            className="h-20 overflow-auto rounded bg-slate-950 px-3 py-2 font-mono text-xs leading-5 text-slate-300 shadow-inner"
+          >
+            <div className="whitespace-pre-wrap break-words">{streamingText}</div>
           </div>
         </div>
       )}
@@ -85,8 +88,6 @@ export default function StreamingGrade({ streamingText, result, error, done }: P
           )}
         </div>
       )}
-
-      <div ref={bottomRef} />
     </div>
   );
 }

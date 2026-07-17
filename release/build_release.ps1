@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.4.1"
+    [string]$Version = "0.4.2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,7 +9,9 @@ $Backend = Join-Path $Root "backend"
 $Python = Join-Path $Backend ".venv\Scripts\python.exe"
 $DistRoot = Join-Path $PSScriptRoot "dist"
 $WorkRoot = Join-Path $PSScriptRoot "build"
-$AppDir = Join-Path $DistRoot "FaceAce"
+$StageRoot = Join-Path $WorkRoot "dist"
+$AppDir = Join-Path $StageRoot "FaceAce"
+$FinalAppDir = Join-Path $DistRoot "FaceAce-v$Version-win64"
 $ZipPath = Join-Path $DistRoot "FaceAce-v$Version-win64.zip"
 
 if (-not (Test-Path -LiteralPath $Python)) {
@@ -32,17 +34,19 @@ try {
     Pop-Location
 }
 
-foreach ($Target in @($DistRoot, $WorkRoot)) {
-    if (Test-Path -LiteralPath $Target) {
-        $Resolved = (Resolve-Path -LiteralPath $Target).Path
-        if (-not $Resolved.StartsWith($PSScriptRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to clean a path outside release directory: $Resolved"
-        }
-        Remove-Item -LiteralPath $Resolved -Recurse -Force
+if (Test-Path -LiteralPath $WorkRoot) {
+    $Resolved = (Resolve-Path -LiteralPath $WorkRoot).Path
+    if (-not $Resolved.StartsWith($PSScriptRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to clean a path outside release directory: $Resolved"
     }
+    Remove-Item -LiteralPath $Resolved -Recurse -Force
 }
 
-New-Item -ItemType Directory -Path $DistRoot, $WorkRoot -Force | Out-Null
+if (Test-Path -LiteralPath $FinalAppDir) {
+    throw "Target app directory already exists; preserving it to avoid data loss: $FinalAppDir"
+}
+
+New-Item -ItemType Directory -Path $DistRoot, $WorkRoot, $StageRoot -Force | Out-Null
 
 Write-Host "[3/5] Packaging FaceAce.exe..."
 & $Python -m PyInstaller `
@@ -57,7 +61,7 @@ Write-Host "[3/5] Packaging FaceAce.exe..."
     --add-data "$(Join-Path $Frontend 'dist');web" `
     --add-data "$(Join-Path $PSScriptRoot 'assets\faceace-logo.png');brand" `
     --icon (Join-Path $PSScriptRoot "assets\faceace.ico") `
-    --distpath $DistRoot `
+    --distpath $StageRoot `
     --workpath $WorkRoot `
     --specpath $WorkRoot `
     --exclude-module pytest
@@ -70,8 +74,9 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot "README_RELEASE.txt") -Destinati
 Write-Host "[5/5] Creating ZIP..."
 if (Test-Path -LiteralPath $ZipPath) { Remove-Item -LiteralPath $ZipPath -Force }
 Compress-Archive -Path (Join-Path $AppDir "*") -DestinationPath $ZipPath -CompressionLevel Optimal
+Copy-Item -LiteralPath $AppDir -Destination $FinalAppDir -Recurse
 
 Write-Host ""
 Write-Host "Build complete:"
-Write-Host "  App: $AppDir\FaceAce.exe"
+Write-Host "  App: $FinalAppDir\FaceAce.exe"
 Write-Host "  ZIP: $ZipPath"

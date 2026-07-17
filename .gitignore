@@ -12,6 +12,7 @@ dist/
 .vite/
 release/build/
 release/dist/
+release/data-backups/
 
 # Backend runtime data
 backend/data/faceace.db

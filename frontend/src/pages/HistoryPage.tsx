@@ -169,6 +169,9 @@ export default function HistoryPage() {
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                         <span>{new Date(r.created_at).toLocaleString()}</span>
+                        {r.revealed && (
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">看答案后提交</span>
+                        )}
                         {r.grading && (
                           <span className={VERDICT_COLOR[r.grading.verdict] || ""}>
                             {r.grading.verdict} · {r.grading.score}分

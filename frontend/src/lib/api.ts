@@ -72,7 +72,11 @@ export const api = {
     difficulty?: string;
     deck_id?: string;
     group_mode?: boolean;
+    prefer_unanswered?: boolean;
   }) => req<{ items: Question[] }>(`/questions/draw${qs(params)}`),
+
+  listQuestionTags: (params: { difficulty?: string; deck_id?: string } = {}) =>
+    req<{ items: { name: string; count: number }[] }>(`/questions/tags${qs(params)}`),
 
   getQuestion: (id: string) => req<Question>(`/questions/${id}`),
   createQuestion: (data: Partial<Question>) =>

@@ -1,10 +1,12 @@
 """Question bank service: CRUD, draw, export."""
 import random
+from collections import Counter
 
 from sqlalchemy.orm import Session
 
 from app.models.bookmark import Bookmark
 from app.models.note import Note
+from app.models.practice import PracticeRecord
 from app.models.question import Question
 from app.schemas.question import QuestionCreate, QuestionUpdate
 
@@ -63,6 +65,26 @@ def batch_move(db: Session, ids: list[str], deck_id: str | None) -> int:
 
 def get_question(db: Session, question_id: str) -> Question | None:
     return db.get(Question, question_id)
+
+
+def list_tags(
+    db: Session,
+    difficulty: str | None = None,
+    deck_id: str | None = None,
+) -> list[dict]:
+    query = db.query(Question.tags).filter(Question.review_status == "approved")
+    if difficulty:
+        query = query.filter(Question.difficulty == difficulty)
+    if deck_id:
+        query = query.filter(Question.deck_id == deck_id)
+    rows = query.all()
+    counts: Counter[str] = Counter()
+    for (tags,) in rows:
+        counts.update(tag.strip() for tag in (tags or []) if isinstance(tag, str) and tag.strip())
+    return [
+        {"name": name, "count": count}
+        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0].casefold()))
+    ]
 
 
 def create_question(db: Session, data: QuestionCreate) -> Question:
@@ -137,6 +159,7 @@ def draw_questions(
     difficulty: str | None = None,
     deck_id: str | None = None,
     group_mode: bool = True,
+    prefer_unanswered: bool = False,
 ) -> list[Question]:
     q = db.query(Question).filter(Question.review_status == "approved")
     if difficulty:
@@ -160,8 +183,23 @@ def draw_questions(
     if limit <= 0:
         return []
 
+    answered_ids: set[str] = set()
+    if prefer_unanswered:
+        answered_ids = set(
+            row[0]
+            for row in db.query(PracticeRecord.question_id).distinct().all()
+            if row[0]
+        )
+
     if not group_mode:
-        random.shuffle(items)
+        if prefer_unanswered:
+            unanswered = [item for item in items if item.id not in answered_ids]
+            answered = [item for item in items if item.id in answered_ids]
+            random.shuffle(unanswered)
+            random.shuffle(answered)
+            items = unanswered + answered
+        else:
+            random.shuffle(items)
         return items[:limit]
 
     # Group-aware drawing: keep follow-up chains intact
@@ -180,7 +218,14 @@ def draw_questions(
 
     # 3) Build units: each unit is a group (all its questions) or a single ungrouped question
     units: list[list[Question]] = list(grouped.values()) + [[u] for u in ungrouped]
-    random.shuffle(units)
+    if prefer_unanswered:
+        unanswered_units = [unit for unit in units if any(item.id not in answered_ids for item in unit)]
+        answered_units = [unit for unit in units if all(item.id in answered_ids for item in unit)]
+        random.shuffle(unanswered_units)
+        random.shuffle(answered_units)
+        units = unanswered_units + answered_units
+    else:
+        random.shuffle(units)
 
     # 4) Flatten units until we hit limit (whole groups are kept intact)
     result: list[Question] = []

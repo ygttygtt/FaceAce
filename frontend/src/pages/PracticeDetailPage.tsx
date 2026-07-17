@@ -36,6 +36,9 @@ export default function PracticeDetailPage() {
       <div className="bg-white border rounded-lg p-6 mb-4 shadow-sm">
         <div className="text-xs text-gray-500 mb-2">
           {new Date(detail.created_at).toLocaleString()} · 用时 {detail.duration_sec}s
+          {detail.revealed && (
+            <span className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">看答案后提交</span>
+          )}
         </div>
         <div className="text-base text-gray-900 whitespace-pre-wrap leading-relaxed mb-4">
           {detail.question?.question_text || (detail as any).question_text || "（题目已删除）"}

@@ -12,9 +12,11 @@ import type { GradingResult, Question } from "../types";
 export default function PracticePage() {
   const [mode, setMode] = useState("random");
   const [difficulty, setDifficulty] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagSearch, setTagSearch] = useState("");
   const [deckId, setDeckId] = useState("");
   const [limit, setLimit] = useState(10);
+  const [preferUnanswered, setPreferUnanswered] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [idx, setIdx] = useState(0);
   const [userAnswer, setUserAnswer] = useState("");
@@ -31,10 +33,23 @@ export default function PracticePage() {
   // group mode
   const [groupMode, setGroupMode] = useState(true);
   const [answerRevealed, setAnswerRevealed] = useState(false);
+  const [revealedAtSubmit, setRevealedAtSubmit] = useState<boolean | null>(null);
   const questionStartedAt = useRef(Date.now());
+  const gradeAbortRef = useRef<AbortController | null>(null);
 
   const { data: decksData } = useQuery({ queryKey: ["decks"], queryFn: api.listDecks });
   const decks = decksData?.items || [];
+  const { data: tagsData } = useQuery({
+    queryKey: ["question-tags", difficulty, deckId],
+    queryFn: () => api.listQuestionTags({
+      difficulty: difficulty || undefined,
+      deck_id: deckId || undefined,
+    }),
+  });
+  const availableTags = tagsData?.items || [];
+  const filteredTags = availableTags.filter((tag) =>
+    tag.name.toLocaleLowerCase().includes(tagSearch.trim().toLocaleLowerCase()),
+  );
 
   const current = questions[idx];
 
@@ -42,6 +57,7 @@ export default function PracticePage() {
     if (current?.id) {
       questionStartedAt.current = Date.now();
       setAnswerRevealed(false);
+      setRevealedAtSubmit(null);
     }
   }, [current?.id]);
 
@@ -57,9 +73,10 @@ export default function PracticePage() {
         mode,
         limit,
         difficulty: difficulty || undefined,
-        tags: tags || undefined,
+        tags: tags.length ? tags.join(",") : undefined,
         deck_id: deckId || undefined,
         group_mode: groupMode,
+        prefer_unanswered: mode !== "wrong" && preferUnanswered,
       });
       // group mode: sort by group_id then group_seq, flatten groups together
       if (groupMode) {
@@ -93,32 +110,67 @@ export default function PracticePage() {
 
   const doGrade = async () => {
     if (!current || !userAnswer.trim()) return;
+    const answerAtSubmit = userAnswer.trim();
+    const revealSnapshot = answerRevealed;
+    const controller = new AbortController();
+    gradeAbortRef.current = controller;
+    setRevealedAtSubmit(revealSnapshot);
     setGrading2(true);
     setGrading(null);
     setStreamText("");
     setStreamError(null);
     setStreamDone(false);
+    let recordId: string | null = null;
+    let resultReceived = false;
     try {
       const rec = await api.createPracticeRecord({
         question_id: current.id,
-        user_answer: userAnswer,
-        revealed: answerRevealed,
+        user_answer: answerAtSubmit,
+        revealed: revealSnapshot,
         duration_sec: Math.max(1, Math.round((Date.now() - questionStartedAt.current) / 1000)),
       });
+      recordId = rec.id;
       await streamSSE(`/practice/grade/stream`, {
         question_id: current.id,
-        user_answer: userAnswer,
+        user_answer: answerAtSubmit,
         practice_record_id: rec.id,
       }, {
         onDelta: (d) => setStreamText((t) => t + d),
-        onResult: (r) => setGrading(r),
+        onResult: (r) => {
+          resultReceived = true;
+          setGrading(r);
+        },
         onDone: () => setStreamDone(true),
         onError: (m) => setStreamError(m),
+        signal: controller.signal,
       });
     } catch (e: any) {
-      setStreamError(e.message);
+      if (e?.name !== "AbortError") setStreamError(e.message);
+    } finally {
+      if (recordId && !resultReceived) {
+        try {
+          await api.deleteRecord(recordId);
+        } catch {
+          /* The server may already be finalizing the canceled request. */
+        }
+      }
+      if (gradeAbortRef.current === controller) {
+        gradeAbortRef.current = null;
+        setGrading2(false);
+      }
     }
+  };
+
+  const cancelGrade = () => {
+    const controller = gradeAbortRef.current;
+    gradeAbortRef.current = null;
+    controller?.abort();
     setGrading2(false);
+    setStreamText("");
+    setStreamError(null);
+    setStreamDone(false);
+    setGrading(null);
+    setRevealedAtSubmit(null);
   };
 
   const next = () => {
@@ -128,6 +180,7 @@ export default function PracticePage() {
     setStreamError(null);
     setStreamDone(false);
     setAnswerRevealed(false);
+    setRevealedAtSubmit(null);
     setIdx((i) => i + 1);
   };
 
@@ -157,11 +210,43 @@ export default function PracticePage() {
                 <option value="hard">困难</option>
               </select>
             </label>
-            <label className="text-sm">
-              标签（逗号分隔）
-              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="如:JavaScript,闭包"
-                className="block border rounded px-2 py-1.5 mt-1 w-full text-sm" />
-            </label>
+            <div className="text-sm sm:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <span>标签（可多选）</span>
+                {tags.length > 0 && (
+                  <button type="button" onClick={() => setTags([])} className="text-xs text-blue-600 hover:underline">
+                    清空
+                  </button>
+                )}
+              </div>
+              <input
+                value={tagSearch}
+                onChange={(e) => setTagSearch(e.target.value)}
+                placeholder="搜索已有标签"
+                className="block border rounded px-2 py-1.5 mt-1 w-full text-sm"
+              />
+              <div className="mt-2 max-h-32 overflow-auto rounded border bg-gray-50 p-2 flex flex-wrap gap-1.5">
+                {filteredTags.length > 0 ? filteredTags.map((tag) => {
+                  const selected = tags.includes(tag.name);
+                  return (
+                    <button
+                      type="button"
+                      key={tag.name}
+                      onClick={() => setTags((currentTags) =>
+                        selected ? currentTags.filter((item) => item !== tag.name) : [...currentTags, tag.name]
+                      )}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                        selected ? "border-blue-600 bg-blue-600 text-white" : "bg-white text-gray-600 hover:border-blue-400"
+                      }`}
+                    >
+                      {tag.name} <span className={selected ? "text-blue-100" : "text-gray-400"}>{tag.count}</span>
+                    </button>
+                  );
+                }) : (
+                  <span className="text-xs text-gray-500 py-1">没有匹配的已有标签</span>
+                )}
+              </div>
+            </div>
             <label className="text-sm">
               数量
               <input type="number" value={limit} onChange={(e) => setLimit(Number(e.target.value))}
@@ -179,6 +264,19 @@ export default function PracticePage() {
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input type="checkbox" checked={groupMode} onChange={(e) => setGroupMode(e.target.checked)} />
             整组抽取（追问题目连续出现）
+          </label>
+          <label className={`flex items-start gap-2 text-sm ${mode === "wrong" ? "text-gray-400" : "text-gray-600"}`}>
+            <input
+              type="checkbox"
+              checked={preferUnanswered}
+              disabled={mode === "wrong"}
+              onChange={(e) => setPreferUnanswered(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              优先抽取未回答过的题目
+              <span className="block text-xs text-gray-400">未答题不足时，再用已答题补足数量</span>
+            </span>
           </label>
           <button onClick={draw} disabled={loading}
             className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
@@ -250,12 +348,23 @@ export default function PracticePage() {
           value={userAnswer}
           onChange={(e) => setUserAnswer(e.target.value)}
           rows={5}
+          disabled={grading2}
           placeholder="输入你的答案，提交给 AI 面试官批改..."
-          className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+          className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
         />
-        {answerRevealed && (
+        {answerRevealed && revealedAtSubmit === null && (
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            你已经查看过参考答案，本次记录会标记为“看答案后作答”。
+            你已查看参考答案；点击提交时，本次记录会标记为“看答案后作答”。
+          </div>
+        )}
+        {answerRevealed && revealedAtSubmit === false && (
+          <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+            本次回答在揭晓答案前已经提交，当前查看不会改变本次批改记录。
+          </div>
+        )}
+        {revealedAtSubmit === true && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            本次回答提交前已查看参考答案，记录已按提交时状态锁定。
           </div>
         )}
         <div className="flex gap-2">
@@ -267,11 +376,12 @@ export default function PracticePage() {
             {grading2 ? "批改中..." : "提交 AI 批改"}
           </button>
           <button
-            onClick={next}
-            disabled={grading2}
-            className="px-4 py-1.5 border rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+            onClick={grading2 ? cancelGrade : next}
+            className={`px-4 py-1.5 border rounded-lg text-sm transition-colors ${
+              grading2 ? "border-red-300 text-red-600 hover:bg-red-50" : "hover:bg-gray-50"
+            }`}
           >
-            下一题
+            {grading2 ? "取消批改" : "下一题"}
           </button>
         </div>
 

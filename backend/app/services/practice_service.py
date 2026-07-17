@@ -171,11 +171,12 @@ def delete_record(db: Session, record_id: str) -> bool:
     pr = db.get(PracticeRecord, record_id)
     if not pr:
         return False
-    # also delete associated grading result if exists
-    if pr.grading_id:
-        gr = db.get(GradingResult, pr.grading_id)
-        if gr:
-            db.delete(gr)
+    gradings = db.query(GradingResult).filter(
+        (GradingResult.practice_record_id == record_id)
+        | (GradingResult.id == pr.grading_id)
+    ).all()
+    for grading in gradings:
+        db.delete(grading)
     db.delete(pr)
     db.commit()
     return True

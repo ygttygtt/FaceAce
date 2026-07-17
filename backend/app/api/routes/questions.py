@@ -29,7 +29,7 @@ def list_questions(
     limit: int = Query(100, le=500),
     offset: int = 0,
 ):
-    tag_list = [t for t in tags.split(",") if t] if tags else None
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
     items, total = question_service.list_questions(
         db, keyword=keyword, tags=tag_list, difficulty=difficulty, qtype=qtype,
         deck_id=deck_id, bookmarked_only=bookmarked, limit=limit, offset=offset,
@@ -50,10 +50,11 @@ def draw_questions(
     difficulty: str | None = None,
     deck_id: str | None = None,
     group_mode: bool = True,
+    prefer_unanswered: bool = False,
 ):
-    tag_list = [t for t in tags.split(",") if t] if tags else None
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
     items = question_service.draw_questions(
-        db, mode, limit, tag_list, difficulty, deck_id, group_mode
+        db, mode, limit, tag_list, difficulty, deck_id, group_mode, prefer_unanswered
     )
     annotated = question_service.annotate_questions(db, items)
     return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
@@ -62,6 +63,15 @@ def draw_questions(
 @router.get("/questions/export")
 def export_questions(db: Session = Depends(get_db)):
     return {"questions": question_service.export_questions(db)}
+
+
+@router.get("/questions/tags")
+def list_tags(
+    difficulty: str | None = None,
+    deck_id: str | None = None,
+    db: Session = Depends(get_db),
+):
+    return {"items": question_service.list_tags(db, difficulty, deck_id)}
 
 
 @router.get("/questions/{qid}")
