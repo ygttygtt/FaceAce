@@ -2,6 +2,8 @@ import { SSE_BASE } from "./api";
 
 export interface SSEHandlers {
   onDelta: (text: string) => void;
+  onAnalysisDelta?: (text: string) => void;
+  onAnalysisError?: (msg: string) => void;
   onDone?: () => void;
   onResult?: (result: any) => void;
   onError?: (msg: string) => void;
@@ -42,6 +44,8 @@ export async function streamSSE(path: string, body: any, h: SSEHandlers): Promis
       try {
         const evt = JSON.parse(data);
         if (evt.delta) h.onDelta(evt.delta);
+        if (evt.analysis_delta) h.onAnalysisDelta?.(evt.analysis_delta);
+        if (evt.analysis_error) h.onAnalysisError?.(evt.analysis_error);
         if (evt.result) h.onResult?.(evt.result);
         if (evt.done) h.onDone?.();
         if (evt.error) h.onError?.(evt.error);

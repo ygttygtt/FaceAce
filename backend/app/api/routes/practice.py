@@ -1,7 +1,7 @@
 """Practice (flashcard) and AI grading routes."""
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,9 @@ from app.schemas.practice import (
     PracticeRecordCreate,
     PracticeRecordDetailOut,
     PracticeRecordOut,
+    PracticeFollowUpMessageOut,
+    PracticeFollowUpRequest,
+    PracticeFollowUpResponse,
 )
 from app.schemas.question import BatchDeleteRequest, QuestionOut
 from app.services import practice_service, question_service
@@ -31,7 +34,8 @@ def create_record(data: PracticeRecordCreate, db: Session = Depends(get_db)):
 async def grade_answer(req: GradeRequest, db: Session = Depends(get_db)):
     llm = build_llm_service(db)
     g = await practice_service.grade_answer(
-        db, llm, req.question_id, req.user_answer, req.practice_record_id
+        db, llm, req.question_id, req.user_answer, req.practice_record_id,
+        req.include_independent_analysis,
     )
     return GradingResultOut.model_validate(g).model_dump()
 
@@ -42,7 +46,8 @@ async def grade_answer_stream(req: GradeRequest, db: Session = Depends(get_db)):
 
     async def event_stream():
         async for chunk in practice_service.grade_answer_stream(
-            db, llm, req.question_id, req.user_answer, req.practice_record_id
+            db, llm, req.question_id, req.user_answer, req.practice_record_id,
+            req.include_independent_analysis,
         ):
             yield f"data: {chunk}\n\n"
 
@@ -53,7 +58,7 @@ async def grade_answer_stream(req: GradeRequest, db: Session = Depends(get_db)):
 def list_records(
     db: Session = Depends(get_db),
     question_id: str | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),
 ):
     items = practice_service.list_records(db, question_id, limit)
     # Batch load related objects to avoid N+1
@@ -106,6 +111,52 @@ def wrong_questions(db: Session = Depends(get_db)):
     items = practice_service.wrong_questions(db)
     annotated = question_service.annotate_questions(db, items)
     return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
+
+
+@router.get("/practice/low-score-questions")
+def low_score_questions(
+    max_score: int = Query(50, ge=0, le=100),
+    db: Session = Depends(get_db),
+):
+    """Questions whose latest attempt is at or below the chosen threshold."""
+    ids = practice_service.latest_low_score_question_ids(db, max_score)
+    if not ids:
+        return {"items": []}
+    items = db.query(Question).filter(Question.id.in_(ids)).all()
+    annotated = question_service.annotate_questions(db, items)
+    return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}
+
+
+@router.get("/practice/records/{record_id}/follow-ups")
+def list_follow_ups(record_id: str, db: Session = Depends(get_db)):
+    items = practice_service.list_follow_ups(db, record_id)
+    return {
+        "items": [PracticeFollowUpMessageOut.model_validate(item).model_dump() for item in items]
+    }
+
+
+@router.post(
+    "/practice/records/{record_id}/follow-up",
+    response_model=PracticeFollowUpResponse,
+    include_in_schema=False,
+)
+@router.post(
+    "/practice/records/{record_id}/follow-ups",
+    response_model=PracticeFollowUpResponse,
+)
+async def create_follow_up(
+    record_id: str,
+    data: PracticeFollowUpRequest,
+    db: Session = Depends(get_db),
+):
+    llm = build_llm_service(db)
+    user_item, assistant_item = await practice_service.follow_up(
+        db, llm, record_id, data.message
+    )
+    return PracticeFollowUpResponse(
+        user_message=PracticeFollowUpMessageOut.model_validate(user_item),
+        assistant_message=PracticeFollowUpMessageOut.model_validate(assistant_item),
+    )
 
 
 @router.delete("/practice/records/{record_id}", status_code=204)

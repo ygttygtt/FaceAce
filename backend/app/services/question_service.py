@@ -160,6 +160,7 @@ def draw_questions(
     deck_id: str | None = None,
     group_mode: bool = True,
     prefer_unanswered: bool = False,
+    low_score_threshold: int | None = None,
 ) -> list[Question]:
     q = db.query(Question).filter(Question.review_status == "approved")
     if difficulty:
@@ -168,9 +169,16 @@ def draw_questions(
         q = q.filter(Question.deck_id == deck_id)
 
     if mode == "wrong":
-        from app.services.practice_service import latest_wrong_question_ids
+        from app.services.practice_service import (
+            latest_low_score_question_ids,
+            latest_wrong_question_ids,
+        )
 
-        wrong_ids = latest_wrong_question_ids(db)
+        wrong_ids = (
+            latest_low_score_question_ids(db, low_score_threshold)
+            if low_score_threshold is not None
+            else latest_wrong_question_ids(db)
+        )
         if not wrong_ids:
             return []
         items = q.filter(Question.id.in_(wrong_ids)).all()

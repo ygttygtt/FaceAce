@@ -51,10 +51,12 @@ def draw_questions(
     deck_id: str | None = None,
     group_mode: bool = True,
     prefer_unanswered: bool = False,
+    low_score_threshold: int | None = Query(None, ge=0, le=100),
 ):
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
     items = question_service.draw_questions(
-        db, mode, limit, tag_list, difficulty, deck_id, group_mode, prefer_unanswered
+        db, mode, limit, tag_list, difficulty, deck_id, group_mode,
+        prefer_unanswered, low_score_threshold,
     )
     annotated = question_service.annotate_questions(db, items)
     return {"items": [QuestionOut.model_validate(d).model_dump() for d in annotated]}

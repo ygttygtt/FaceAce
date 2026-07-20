@@ -27,6 +27,7 @@ class IngestJobDetail(IngestJobOut):
     extracted_text: Optional[str]
     questions: list[NormalizedQuestion] = Field(default_factory=list)
     errors: list[dict] = Field(default_factory=list)
+    audit: Optional[dict] = None
 
 
 class ReviewItemUpdate(BaseModel):

@@ -11,12 +11,14 @@ const VERDICT_COLOR: Record<string, string> = {
 
 interface Props {
   streamingText: string;
+  analysisStreamingText?: string;
+  analysisError?: string | null;
   result: GradingResult | null;
   error: string | null;
   done: boolean;
 }
 
-export default function StreamingGrade({ streamingText, result, error, done }: Props) {
+export default function StreamingGrade({ streamingText, analysisStreamingText = "", analysisError = null, result, error, done }: Props) {
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,8 +46,25 @@ export default function StreamingGrade({ streamingText, result, error, done }: P
         </div>
       )}
 
+      {!done && analysisStreamingText && (
+        <div className="rounded border border-violet-200 bg-purple-100 px-3 py-2">
+          <div className="mb-1 flex items-center gap-1 text-xs font-medium text-purple-700">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-violet-500" />
+            AI 正在独立推导答案...
+          </div>
+          <div className="line-clamp-3 whitespace-pre-wrap text-xs text-gray-600">{analysisStreamingText}</div>
+        </div>
+      )}
+
+      {analysisError && (
+        <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          {analysisError}；基于参考材料的批改结果仍会正常保留。
+        </div>
+      )}
+
       {done && result && (
         <div className="space-y-2">
+          <div className="text-xs font-medium text-gray-500">基于题库参考答案的批改</div>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded text-sm font-bold ${VERDICT_COLOR[result.verdict] || ""}`}>
               {labelOf(VERDICT_LABELS, result.verdict)}
@@ -84,6 +103,12 @@ export default function StreamingGrade({ streamingText, result, error, done }: P
             <div>
               <div className="text-xs text-gray-600 mb-1 font-medium">参考改进答案</div>
               <MarkdownView>{result.improved_answer}</MarkdownView>
+            </div>
+          )}
+          {result.independent_analysis && (
+            <div className="rounded-lg border border-violet-200 bg-purple-100 p-3">
+              <div className="mb-1 text-xs font-medium text-purple-700">AI 独立解析（不依赖导入的参考答案）</div>
+              <MarkdownView>{result.independent_analysis}</MarkdownView>
             </div>
           )}
         </div>

@@ -20,6 +20,7 @@ export default function HistoryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bookmarkDetail, setBookmarkDetail] = useState<Question | null>(null);
   const [wrongDetail, setWrongDetail] = useState<Question | null>(null);
+  const [wrongThreshold, setWrongThreshold] = useState(50);
   const qc = useQueryClient();
 
   const { data: sessions } = useQuery({
@@ -28,11 +29,11 @@ export default function HistoryPage() {
   });
   const { data: recordsData } = useQuery({
     queryKey: ["practiceRecords"],
-    queryFn: () => api.listRecords(),
+    queryFn: () => api.listRecords(undefined, 500),
   });
   const { data: wrong } = useQuery({
-    queryKey: ["wrongQuestions"],
-    queryFn: api.wrongQuestions,
+    queryKey: ["lowScoreQuestions", wrongThreshold],
+    queryFn: () => api.lowScoreQuestions(wrongThreshold),
   });
   const { data: bookmarks } = useQuery({
     queryKey: ["bookmarks"],
@@ -77,7 +78,7 @@ export default function HistoryPage() {
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "records", label: "刷题记录", count: records.length },
-    { key: "wrong", label: "错题集", count: wrong?.items?.length || 0 },
+    { key: "wrong", label: "低分错题", count: wrong?.items?.length || 0 },
     { key: "bookmarks", label: "收藏题目", count: bookmarks?.items?.length || 0 },
     { key: "simulations", label: "仿真面试", count: sessions?.items?.length || 0 },
   ];
@@ -204,8 +205,25 @@ export default function HistoryPage() {
 
       {tab === "wrong" && (
         <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+            <div>
+              <div className="font-medium text-amber-800">低分错题</div>
+              <div className="text-xs text-amber-700">按每题最近一次批改筛选，答好后自动移出，历史作答不会删除。</div>
+            </div>
+            <label className="shrink-0 text-xs text-amber-800">
+              最近得分不高于
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={wrongThreshold}
+                onChange={(event) => setWrongThreshold(Math.max(0, Math.min(100, Number(event.target.value))))}
+                className="ml-2 w-16 rounded border px-2 py-1 text-center"
+              />
+            </label>
+          </div>
           {(wrong?.items || []).length === 0 ? (
-            <div className="text-gray-400 text-sm py-8 text-center">暂无错题</div>
+            <div className="text-gray-400 text-sm py-8 text-center">暂无最近得分不高于 {wrongThreshold} 分的题目</div>
           ) : (
             wrong?.items.map((q) => (
               <div
@@ -328,10 +346,10 @@ export default function HistoryPage() {
               <button onClick={() => setBookmarkDetail(null)} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
             </div>
             <div className="text-gray-900 mb-3 whitespace-pre-wrap">{bookmarkDetail.question_text}</div>
-            {bookmarkDetail.standard_answer && (
+            {(bookmarkDetail.user_answer_override ?? bookmarkDetail.standard_answer) && (
               <div className="mb-3">
                 <div className="text-xs text-gray-500 mb-1">标准答案</div>
-                <MarkdownView>{bookmarkDetail.standard_answer}</MarkdownView>
+                <MarkdownView>{bookmarkDetail.user_answer_override ?? bookmarkDetail.standard_answer ?? ""}</MarkdownView>
               </div>
             )}
             {bookmarkDetail.explanation && (
@@ -366,7 +384,7 @@ export default function HistoryPage() {
 function WrongQuestionDetail({ question, onClose }: { question: Question; onClose: () => void }) {
   const { data: records } = useQuery({
     queryKey: ["wrongRecords", question.id],
-    queryFn: () => api.listRecords(question.id),
+    queryFn: () => api.listRecords(question.id, 200),
   });
   const items = records?.items || [];
 
@@ -381,10 +399,10 @@ function WrongQuestionDetail({ question, onClose }: { question: Question; onClos
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
         </div>
         <div className="text-gray-900 mb-3 whitespace-pre-wrap">{question.question_text}</div>
-        {question.standard_answer && (
+        {(question.user_answer_override ?? question.standard_answer) && (
           <div className="mb-3">
             <div className="text-xs text-gray-500 mb-1">标准答案</div>
-            <MarkdownView>{question.standard_answer}</MarkdownView>
+            <MarkdownView>{question.user_answer_override ?? question.standard_answer ?? ""}</MarkdownView>
           </div>
         )}
         {question.explanation && (
@@ -404,7 +422,7 @@ function WrongQuestionDetail({ question, onClose }: { question: Question; onClos
 
         <div className="border-t pt-3">
           <div className="text-sm font-medium text-gray-700 mb-2">
-            历史刷题记录 ({items.length} 次)
+            历史刷题记录 ({items.length} 次，可逐次打开对比)
           </div>
           {items.length === 0 ? (
             <div className="text-gray-400 text-sm">暂无刷题记录</div>

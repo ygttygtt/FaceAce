@@ -46,7 +46,22 @@ export interface GradingResult {
   missing_points: string[];
   detailed_feedback: string;
   improved_answer: string | null;
+  independent_analysis?: string | null;
   created_at: string;
+}
+
+export interface FollowUpMessage {
+  id: string;
+  practice_record_id: string;
+  grading_result_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface FollowUpResponse {
+  user_message: FollowUpMessage;
+  assistant_message: FollowUpMessage;
 }
 
 export interface SimulationMessage {
@@ -162,9 +177,23 @@ export interface IngestJobDetail extends IngestJob {
   errors: Array<{
     chunk_index: number;
     chunk_number?: number;
+    phase?: "boundary" | "normalize" | "audit";
+    code?: string;
+    severity?: "info" | "warning" | "error";
+    block_start?: number | null;
+    block_end?: number | null;
     preview?: string;
     error: string;
   }>;
+  audit?: {
+    summary?: {
+      explicit_question_count?: number;
+      result_count?: number;
+      duplicates_removed?: number;
+      issue_count?: number;
+    };
+    issues?: Array<{ code?: string; severity?: string; message: string }>;
+  } | null;
 }
 
 export interface Bookmark {

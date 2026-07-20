@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import MarkdownView from "../components/MarkdownView";
+import AttemptHistory from "../components/AttemptHistory";
+import PracticeFollowUp from "../components/PracticeFollowUp";
 import type { GradingResult } from "../types";
 import { VERDICT_LABELS, labelOf } from "../lib/labels";
 
@@ -43,10 +45,10 @@ export default function PracticeDetailPage() {
         <div className="text-base text-gray-900 whitespace-pre-wrap leading-relaxed mb-4">
           {detail.question?.question_text || (detail as any).question_text || "（题目已删除）"}
         </div>
-        {detail.question?.standard_answer && (
+        {(detail.question?.user_answer_override ?? detail.question?.standard_answer) && (
           <div>
             <div className="text-xs text-gray-500 mb-1 font-medium">标准答案</div>
-            <MarkdownView>{detail.question.standard_answer}</MarkdownView>
+            <MarkdownView>{detail.question.user_answer_override ?? detail.question.standard_answer ?? ""}</MarkdownView>
           </div>
         )}
       </div>
@@ -60,6 +62,7 @@ export default function PracticeDetailPage() {
       {/* grading result */}
       {g && (
         <div className="bg-white border rounded-lg p-6 shadow-sm space-y-3">
+          <div className="text-xs font-medium text-gray-500">基于题库参考答案的批改</div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded text-sm font-bold ${VERDICT_COLOR[g.verdict] || ""}`}>
               {labelOf(VERDICT_LABELS, g.verdict)}
@@ -105,6 +108,24 @@ export default function PracticeDetailPage() {
               </div>
             </div>
           )}
+
+          {g.independent_analysis && (
+            <div className="rounded-lg border border-violet-200 bg-purple-100 p-4">
+              <div className="mb-1 text-sm font-medium text-purple-700">AI 独立解析（不依赖导入的参考答案）</div>
+              <MarkdownView>{g.independent_analysis}</MarkdownView>
+            </div>
+          )}
+        </div>
+      )}
+
+      {detail.question_id && (
+        <div className="mt-4">
+          <AttemptHistory questionId={detail.question_id} currentRecordId={detail.id} defaultOpen />
+        </div>
+      )}
+      {g && (
+        <div className="mt-4">
+          <PracticeFollowUp recordId={detail.id} />
         </div>
       )}
     </div>

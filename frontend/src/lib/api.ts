@@ -6,6 +6,8 @@ import type {
   IngestJobDetail,
   LLMProfile,
   Note,
+  FollowUpMessage,
+  FollowUpResponse,
   PracticeRecordDetail,
   PromptTemplate,
   Question,
@@ -73,6 +75,7 @@ export const api = {
     deck_id?: string;
     group_mode?: boolean;
     prefer_unanswered?: boolean;
+    low_score_threshold?: number;
   }) => req<{ items: Question[] }>(`/questions/draw${qs(params)}`),
 
   listQuestionTags: (params: { difficulty?: string; deck_id?: string } = {}) =>
@@ -123,10 +126,11 @@ export const api = {
     question_id: string;
     user_answer: string;
     practice_record_id?: string;
+    include_independent_analysis?: boolean;
   }) => req<GradingResult>(`/practice/grade`, { method: "POST", body: JSON.stringify(data) }),
 
-  listRecords: (question_id?: string) =>
-    req<{ items: any[] }>(`/practice/records${qs({ question_id })}`),
+  listRecords: (question_id?: string, limit?: number) =>
+    req<{ items: PracticeRecordDetail[] }>(`/practice/records${qs({ question_id, limit })}`),
   deleteRecord: (record_id: string) =>
     req<void>(`/practice/records/${record_id}`, { method: "DELETE" }),
   batchDeleteRecords: (ids: string[]) =>
@@ -135,6 +139,16 @@ export const api = {
       body: JSON.stringify({ ids }),
     }),
   wrongQuestions: () => req<{ items: Question[] }>(`/practice/wrong-questions`),
+  lowScoreQuestions: (max_score: number) =>
+    req<{ items: Question[] }>(`/practice/low-score-questions${qs({ max_score })}`),
+
+  listPracticeFollowUps: (record_id: string) =>
+    req<{ items: FollowUpMessage[] }>(`/practice/records/${record_id}/follow-ups`),
+  createPracticeFollowUp: (record_id: string, message: string) =>
+    req<FollowUpResponse>(`/practice/records/${record_id}/follow-ups`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
 
   // ---- bookmarks ----
   toggleBookmark: (question_id: string) =>

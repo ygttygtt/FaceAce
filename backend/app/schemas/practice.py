@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PracticeRecordCreate(BaseModel):
@@ -25,8 +25,9 @@ class PracticeRecordOut(BaseModel):
 
 class GradeRequest(BaseModel):
     question_id: str
-    user_answer: str
+    user_answer: str = Field(min_length=1)
     practice_record_id: Optional[str] = None
+    include_independent_analysis: bool = False
 
 
 class GradingResultOut(BaseModel):
@@ -41,6 +42,7 @@ class GradingResultOut(BaseModel):
     missing_points: list[str]
     detailed_feedback: str
     improved_answer: Optional[str]
+    independent_analysis: Optional[str] = None
     created_at: datetime
 
 
@@ -56,3 +58,22 @@ class PracticeRecordDetailOut(PracticeRecordOut):
     """Enriched practice record with grading result and question info."""
     grading: Optional["GradingResultOut"] = None
     question: Optional[dict] = None
+
+
+class PracticeFollowUpRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=8000)
+
+
+class PracticeFollowUpMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    practice_record_id: str
+    grading_result_id: str
+    role: str
+    content: str
+    created_at: datetime
+
+
+class PracticeFollowUpResponse(BaseModel):
+    user_message: PracticeFollowUpMessageOut
+    assistant_message: PracticeFollowUpMessageOut

@@ -31,5 +31,24 @@ class GradingResult(Base, TimestampMixin):
     missing_points: Mapped[list] = mapped_column(JSON, default=list)
     detailed_feedback: Mapped[str] = mapped_column(Text, default="")
     improved_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional second opinion produced without seeing the imported reference
+    # answer or its generated scoring points.
+    independent_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
     llm_profile_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     raw_response: Mapped[str] = mapped_column(Text, default="")
+
+
+class PracticeFollowUpMessage(Base, TimestampMixin):
+    """A follow-up conversation anchored to one saved practice attempt."""
+
+    __tablename__ = "practice_follow_up_messages"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    practice_record_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("practice_records.id"), index=True
+    )
+    grading_result_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("grading_results.id"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(16))  # user | assistant
+    content: Mapped[str] = mapped_column(Text)

@@ -3,10 +3,14 @@
 create_all() creates new tables but does NOT add columns to existing tables.
 This module patches missing columns so existing DBs upgrade seamlessly.
 """
+import json
 import logging
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
+
+from app.core.ids import new_id
+from app.llm.default_prompts import DEFAULT_PROMPTS
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,40 @@ def run_migrations(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE practice_records ADD COLUMN question_text TEXT"))
         logger.info("migration: added practice_records.question_text")
 
+    # Independent grading second opinion (generated without imported answers).
+    if _has_table(engine, "grading_results") and not _has_column(
+        engine, "grading_results", "independent_analysis"
+    ):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE grading_results ADD COLUMN independent_analysis TEXT"))
+        logger.info("migration: added grading_results.independent_analysis")
+
+    # Follow-up Q&A attached to a saved practice/grading result.
+    if not _has_table(engine, "practice_follow_up_messages"):
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE practice_follow_up_messages (
+                    id VARCHAR(32) PRIMARY KEY,
+                    practice_record_id VARCHAR(32) NOT NULL,
+                    grading_result_id VARCHAR(32) NOT NULL,
+                    role VARCHAR(16) NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (practice_record_id) REFERENCES practice_records(id),
+                    FOREIGN KEY (grading_result_id) REFERENCES grading_results(id)
+                )
+            """))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_practice_follow_up_messages_practice_record_id "
+                "ON practice_follow_up_messages (practice_record_id)"
+            ))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_practice_follow_up_messages_grading_result_id "
+                "ON practice_follow_up_messages (grading_result_id)"
+            ))
+        logger.info("migration: created practice_follow_up_messages table")
+
     # Import progress fields
     if _has_table(engine, "ingest_jobs"):
         ingest_columns = {
@@ -97,6 +135,32 @@ def run_migrations(engine: Engine) -> None:
                 "UPDATE prompt_templates SET name='文档题目识别' "
                 "WHERE key='normalize_questions' AND name='题目归一化'"
             ))
+            # Older installations were seeded only once, so newly introduced
+            # built-in prompts would otherwise work as hidden fallbacks but
+            # never appear in Settings. Insert missing keys without touching
+            # any user-customized rows.
+            existing = {
+                row[0] for row in conn.execute(text("SELECT key FROM prompt_templates")).all()
+            }
+            for key, info in DEFAULT_PROMPTS.items():
+                if key in existing:
+                    continue
+                conn.execute(
+                    text("""
+                        INSERT INTO prompt_templates
+                            (id, key, name, content, variables)
+                        VALUES
+                            (:id, :key, :name, :content, :variables)
+                    """),
+                    {
+                        "id": new_id(),
+                        "key": key,
+                        "name": info["name"],
+                        "content": info["content"],
+                        "variables": json.dumps(info["variables"], ensure_ascii=False),
+                    },
+                )
+                logger.info("migration: added prompt template %s", key)
 
     # Fix old invalid TTS voice values (OpenAI voice names that don't work with mimo)
     if _has_table(engine, "user_config"):

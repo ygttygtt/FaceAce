@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import INGEST_DIR
 from app.core.ids import new_id
-from app.ingest.pipeline import errors_file, normalized_file, process_job_background
+from app.ingest.pipeline import audit_file, errors_file, normalized_file, process_job_background
 from app.models.ingest import IngestJob
 from app.models.question import Question
 from app.schemas.ingest import (
@@ -116,6 +116,11 @@ def get_job(jid: str, db: Session = Depends(get_db)):
         detail["errors"] = json.loads(ef.read_text(encoding="utf-8")) if ef.exists() else []
     except (OSError, json.JSONDecodeError):
         detail["errors"] = [{"chunk_index": -1, "error": "错误详情文件损坏或无法读取"}]
+    af = audit_file(jid)
+    try:
+        detail["audit"] = json.loads(af.read_text(encoding="utf-8")) if af.exists() else None
+    except (OSError, json.JSONDecodeError):
+        detail["audit"] = {"issues": [{"severity": "error", "message": "审计详情损坏或无法读取"}]}
     return detail
 
 
@@ -135,7 +140,7 @@ def retry_job(
     if not Path(job.file_path).exists():
         raise HTTPException(status_code=400, detail="原始文件已不存在，无法重试")
 
-    for artifact in (normalized_file(jid), errors_file(jid)):
+    for artifact in (normalized_file(jid), errors_file(jid), audit_file(jid)):
         if artifact.exists():
             artifact.unlink()
     job.status = "queued"

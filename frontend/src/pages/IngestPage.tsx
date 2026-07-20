@@ -203,7 +203,7 @@ export default function IngestPage() {
                         </div>
                       )}
                       {j.warning_count > 0 && (
-                        <div className="mt-1 text-xs text-amber-700">{j.warning_count} 个分段处理失败，可重试</div>
+                        <div className="mt-1 text-xs text-amber-700">发现 {j.warning_count} 项处理或边界风险，请检查详情</div>
                       )}
                       {j.error_message && (
                         <div className="text-xs text-red-500 mt-1">{j.error_message}</div>
@@ -391,10 +391,22 @@ function ReviewPanel({ jobId, defaultDeckId }: { jobId: string; defaultDeckId: s
           </div>
         </div>
       )}
+      {job.audit?.summary && !ACTIVE_STATUSES.has(job.status) && (
+        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg border bg-white px-3 py-2 text-xs text-gray-600 shadow-sm">
+          <span>智能审计</span>
+          {(job.audit.summary.explicit_question_count ?? 0) > 0 && (
+            <span>明确题目标题 {job.audit.summary.explicit_question_count} 个</span>
+          )}
+          <span>最终识别 {job.audit.summary.result_count ?? job.question_count} 题</span>
+          {(job.audit.summary.duplicates_removed ?? 0) > 0 && (
+            <span>已移除重复 {job.audit.summary.duplicates_removed} 题</span>
+          )}
+        </div>
+      )}
       {job.errors?.length > 0 && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           <div className="flex items-center justify-between gap-3">
-            <strong>{job.errors.length} 个内容分段未成功处理</strong>
+            <strong>{job.errors.length} 项导入检查提示</strong>
             {!ACTIVE_STATUSES.has(job.status) && job.status !== "done" && (
               <button
                 onClick={() => {
@@ -410,9 +422,16 @@ function ReviewPanel({ jobId, defaultDeckId }: { jobId: string; defaultDeckId: s
           <details className="mt-2">
             <summary className="cursor-pointer">查看错误详情</summary>
             <div className="mt-2 space-y-2">
-              {job.errors.map((item) => (
-                <div key={item.chunk_index} className="rounded border border-amber-200 bg-white p-2">
-                  <div>分段 {item.chunk_number ?? item.chunk_index + 1}：{item.error}</div>
+              {job.errors.map((item, errorIndex) => (
+                <div key={`${item.phase || "unknown"}-${item.code || item.chunk_index}-${errorIndex}`} className="rounded border border-amber-200 bg-white p-2">
+                  <div>
+                    {item.phase === "audit"
+                      ? "智能审计"
+                      : item.phase === "boundary"
+                        ? `边界区域 ${item.chunk_number ?? item.chunk_index + 1}`
+                        : `题目区域 ${item.chunk_number ?? item.chunk_index + 1}`}
+                    ：{item.error}
+                  </div>
                   {item.preview && <div className="mt-1 text-gray-500">{item.preview}</div>}
                 </div>
               ))}

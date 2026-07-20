@@ -1,7 +1,11 @@
+import asyncio
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
-from app.models.practice import GradingResult, PracticeRecord
+from app.models.practice import GradingResult, PracticeFollowUpMessage, PracticeRecord
 from app.models.question import Question
+from app.schemas.llm_output import GradingResultLLM
+from app.services.practice_service import grade_answer, follow_up, latest_low_score_question_ids
 from app.services.practice_service import latest_wrong_question_ids
 from app.services.practice_service import delete_record
 from app.services.question_service import draw_questions, list_tags
@@ -40,6 +44,41 @@ def test_wrong_question_uses_latest_attempt(db):
     db.commit()
 
     assert latest_wrong_question_ids(db) == [q.id]
+
+
+def test_low_score_retry_uses_latest_score_and_keeps_attempt_history(db):
+    q1 = Question(id="low", question_text="低分题")
+    q2 = Question(id="graduated", question_text="已掌握")
+    now = datetime.now()
+    db.add_all([
+        q1,
+        q2,
+        GradingResult(question_id=q1.id, score=25, verdict="incorrect", created_at=now),
+        GradingResult(question_id=q2.id, score=35, verdict="incorrect", created_at=now - timedelta(minutes=2)),
+        GradingResult(question_id=q2.id, score=80, verdict="partially_correct", created_at=now),
+    ])
+    db.commit()
+
+    assert latest_low_score_question_ids(db, 40) == [q1.id]
+    # Historical low scores remain available for before/after comparison.
+    assert db.query(GradingResult).filter(GradingResult.question_id == q2.id).count() == 2
+
+
+def test_draw_wrong_mode_can_use_low_score_threshold(db):
+    now = datetime.now()
+    db.add_all([
+        Question(id="score-40", question_text="四十分"),
+        Question(id="score-70", question_text="七十分"),
+        GradingResult(question_id="score-40", score=40, verdict="incorrect", created_at=now),
+        GradingResult(question_id="score-70", score=70, verdict="partially_correct", created_at=now),
+    ])
+    db.commit()
+
+    result = draw_questions(
+        db, mode="wrong", group_mode=False, low_score_threshold=50
+    )
+
+    assert [q.id for q in result] == ["score-40"]
 
 
 def test_group_mode_can_be_disabled(db):
@@ -115,3 +154,96 @@ def test_delete_record_removes_grading_linked_by_record_id(db):
     assert delete_record(db, record.id) is True
     assert db.get(PracticeRecord, record.id) is None
     assert db.get(GradingResult, grading.id) is None
+
+
+class _FakeLLM:
+    def __init__(self):
+        self.profile = SimpleNamespace(id="profile")
+        self.structured_messages = None
+        self.chat_messages = []
+
+    async def structured(self, messages, schema, temperature=0.0):
+        self.structured_messages = messages
+        return GradingResultLLM(
+            score=95,
+            verdict="correct",
+            strengths=["核心思路正确"],
+            weaknesses=[],
+            missing_points=[],
+            detailed_feedback="语义等价，应认可。",
+            improved_answer="示范答案",
+        )
+
+    async def chat(self, messages, temperature=None, max_tokens=None):
+        self.chat_messages.append(messages)
+        return "## 独立解析\n这是不依赖导入答案的分析。"
+
+
+def test_grading_uses_flexible_policy_and_can_save_independent_analysis(db):
+    question = Question(
+        id="flexible", question_text="解释闭包", standard_answer="可能不完整的答案",
+        user_answer_override="用户修订后的参考答案", answer_points=["固定措辞"],
+    )
+    record = PracticeRecord(
+        id="attempt", question_id=question.id, user_answer="语义相同但措辞不同"
+    )
+    db.add_all([question, record])
+    db.commit()
+    llm = _FakeLLM()
+
+    result = asyncio.run(grade_answer(
+        db, llm, question.id, record.user_answer, record.id,
+        include_independent_analysis=True,
+    ))
+
+    assert result.score == 95
+    assert result.independent_analysis.startswith("## 独立解析")
+    assert "只能作为辅助材料" in llm.structured_messages[0]["content"]
+    assert "用户修订后的参考答案" in llm.structured_messages[1]["content"]
+    assert "可能不完整的答案" not in llm.structured_messages[1]["content"]
+    assert db.get(PracticeRecord, record.id).grading_id == result.id
+
+
+def test_direct_grade_call_still_creates_a_comparable_attempt(db):
+    question = Question(id="direct-grade", question_text="什么是索引？")
+    db.add(question)
+    db.commit()
+
+    result = asyncio.run(grade_answer(
+        db, _FakeLLM(), question.id, "索引用于加速查询"
+    ))
+
+    assert result.practice_record_id
+    record = db.get(PracticeRecord, result.practice_record_id)
+    assert record is not None
+    assert record.user_answer == "索引用于加速查询"
+    assert record.grading_id == result.id
+
+
+def test_follow_up_is_saved_as_conversation_on_attempt(db):
+    question = Question(id="follow-question", question_text="解释事务")
+    record = PracticeRecord(
+        id="follow-record", question_id=question.id, user_answer="我的回答"
+    )
+    grading = GradingResult(
+        id="follow-grading", practice_record_id=record.id, question_id=question.id,
+        score=60, verdict="partially_correct", detailed_feedback="需要补充隔离级别",
+        independent_analysis="独立分析内容",
+    )
+    record.grading_id = grading.id
+    db.add_all([question, record, grading])
+    db.commit()
+    llm = _FakeLLM()
+
+    user_item, assistant_item = asyncio.run(
+        follow_up(db, llm, record.id, "可以举个例子吗？")
+    )
+
+    assert user_item.role == "user"
+    assert assistant_item.role == "assistant"
+    assert db.query(PracticeFollowUpMessage).filter_by(
+        practice_record_id=record.id
+    ).count() == 2
+    context = llm.chat_messages[-1][1]["content"]
+    assert "需要补充隔离级别" in context
+    assert "独立分析内容" in context

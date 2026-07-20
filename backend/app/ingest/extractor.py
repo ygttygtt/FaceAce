@@ -1,5 +1,6 @@
 """Text extraction from supported document formats (lightweight, no OCR)."""
 from dataclasses import dataclass
+import re
 
 
 @dataclass
@@ -37,7 +38,16 @@ def _extract_docx(p) -> ExtractedText:
     from docx import Document
 
     doc = Document(str(p))
-    paras = [para.text for para in doc.paragraphs if para.text and para.text.strip()]
+    paras: list[str] = []
+    for para in doc.paragraphs:
+        value = para.text.strip()
+        if not value:
+            continue
+        style_name = (para.style.name if para.style else "") or ""
+        # Preserve Word heading semantics in the same intermediate notation as
+        # Markdown. Non-English Office installations commonly expose “标题 N”.
+        heading = re.match(r"^(?:Heading|标题)\s*([1-6])$", style_name, re.IGNORECASE)
+        paras.append(f"{'#' * int(heading.group(1))} {value}" if heading else value)
     text = "\n\n".join(paras)
     if not text.strip():
         raise ValueError("docx 未提取到任何文字。")
